@@ -1,39 +1,34 @@
-use mongodb::{
-    bson::{doc, oid::ObjectId, Document},
-    Collection,
-};
+use std::io::{Error, ErrorKind};
+
+use crate::app::dtos::dao_dto::CreateDaoDto;
+use actix_web::web;
+use mongodb::bson::oid::ObjectId;
 use crate::app::entities::dao_entity::Dao;
-use mongodb::error::Result as MongoResult;
+use crate::app::repository::repository::Repository;
 
-pub struct DaoService {
-    collection: Collection<Dao>,
-}
+pub async fn create_dao(
+    db: web::Data<Repository<Dao>>,
+    dao: CreateDaoDto,
+) -> Result<ObjectId, Error> {
 
-impl DaoService {
-    pub fn new(collection: Collection<Dao>) -> Self {
-        DaoService { collection }
+    if dao.members.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "Members are required"));
     }
 
-    pub async fn create(&self, dao: Dao) -> MongoResult<ObjectId> {
-        let result = self.collection.insert_one(dao, None).await?;
-        Ok(result.inserted_id.as_object_id().unwrap().to_owned())
-    }
+    let dao_entity = Dao {
+        id: Some(ObjectId::new()),
+        name: dao.name,
+        description: dao.description,
+        logo: dao.logo,
+        members: dao.members,
+    };
 
-    pub async fn find_by_id(&self, id: ObjectId) -> MongoResult<Option<Dao>> {
-        let filter = doc! { "_id": id };
-        let result = self.collection.find_one(filter, None).await?;
-        Ok(result)
-    }
+     let object_id = match db.create(dao_entity).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Err(Error::new(ErrorKind::Other, e.to_string()));
+        }
+     };
 
-    pub async fn update(&self, id: ObjectId, dao: Dao) -> MongoResult<()> {
-        let filter = doc! { "_id": id };
-        let result = self.collection.replace_one(filter, dao, None).await?;
-        Ok(())
-    }
-
-    pub async fn delete(&self, id: ObjectId) -> MongoResult<()> {
-        let filter = doc! { "_id": id };
-        let result = self.collection.delete_one(filter, None).await?;
-        Ok(())
-    }
+    Ok(object_id)
 }
