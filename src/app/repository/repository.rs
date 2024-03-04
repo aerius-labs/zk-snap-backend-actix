@@ -1,8 +1,8 @@
+use mongodb::error::Result as MongoResult;
 use mongodb::{
     bson::{doc, oid::ObjectId},
     Collection,
 };
-use mongodb::error::Result as MongoResult;
 use serde::{Deserialize, Serialize};
 
 pub struct Repository<T>

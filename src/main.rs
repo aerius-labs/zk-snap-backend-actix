@@ -1,7 +1,7 @@
-use actix_web::{web, App, HttpServer};
-use app::repository::repository::Repository;
 use crate::app::config::init_mongo;
 use crate::app::entities::dao_entity::Dao;
+use actix_web::{web, App, HttpServer};
+use app::repository::repository::Repository;
 
 pub mod app;
 

@@ -1,6 +1,6 @@
-use actix_web::web;
 use crate::app::controllers::dao_controller;
+use actix_web::web;
 
-pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig{
+pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
     cfg.service((dao_controller::create, dao_controller::hello))
 }

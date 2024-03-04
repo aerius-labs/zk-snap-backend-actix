@@ -1,6 +1,6 @@
-use mongodb::{Client, options::ClientOptions};
-use std::env;
 use dotenv::dotenv;
+use mongodb::{options::ClientOptions, Client};
+use std::env;
 
 pub async fn init_mongo() -> mongodb::error::Result<Client> {
     dotenv().ok();
