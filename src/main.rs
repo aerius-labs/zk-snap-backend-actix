@@ -1,5 +1,5 @@
 use actix_web::{web, App, HttpServer};
-use app::services::dao_service::{self, DaoService};
+use app::repository::repository::Repository;
 use crate::app::config::init_mongo;
 use crate::app::entities::dao_entity::Dao;
 
@@ -16,7 +16,7 @@ async fn main() -> std::io::Result<()> {
     let database = client.database("rust");
     let collection = database.collection::<Dao>("dao");
 
-    let dao_service = DaoService::new(collection);
+    let dao_service = Repository::new(collection);
     let dao_service_data = web::Data::new(dao_service);
 
     HttpServer::new(move || {
