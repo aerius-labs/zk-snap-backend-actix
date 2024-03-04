@@ -1,16 +1,8 @@
 use crate::app::repository::repository::Repository;
-use crate::app::services::dao_service::create_dao;
+use crate::app::services::dao_service::{create_dao, get_all_daos};
 use crate::app::{dtos::dao_dto::CreateDaoDto, entities::dao_entity::Dao};
-use actix_web::{get, post, web, Responder};
-use mongodb::bson::oid::ObjectId;
+use actix_web::{get, post, web, HttpResponse, Responder};
 use serde_json::json;
-
-#[get("dao/")]
-async fn hello() -> impl Responder {
-    web::Json(json!({
-        "message": "Hello, DAO!"
-    }))
-}
 
 #[post("dao/")]
 async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) -> impl Responder {
@@ -20,17 +12,27 @@ async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) ->
         Ok(result) => result,
         Err(e) => {
             println!("Failed to create DAO: {}", e);
-            return web::Json(json!({
-                "code": 400,
+            return HttpResponse::BadRequest().json(json!({
                 "message": "Failed to create DAO",
                 "Error": e.to_string()
             }));
         }
     };
 
-    web::Json(json!({
-        "code": 201,
+    HttpResponse::Created().json(json!({
         "message": "Creating DAO",
         "ObjectId": result
     }))
+}
+
+#[get("dao/")]
+async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
+    let daos = get_all_daos(db).await;
+    match daos {
+        Ok(result) => HttpResponse::Ok().json(result),
+        Err(e) => HttpResponse::BadRequest().json(json!({
+          "message": "Failed to get all DAOs",
+          "Error": e.to_string()
+        })),
+    }
 }

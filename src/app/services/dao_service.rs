@@ -31,3 +31,12 @@ pub async fn create_dao(
 
     Ok(object_id)
 }
+
+pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<Dao>, Error> {
+    match db.find_all().await {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            return Err(Error::new(ErrorKind::Other, e.to_string()));
+        }
+    }
+}
