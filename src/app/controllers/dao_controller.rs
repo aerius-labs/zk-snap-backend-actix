@@ -6,10 +6,18 @@ use crate::app::{dtos::dao_dto::CreateDaoDto, entities::dao_entity::Dao};
 use actix_web::web::Path;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use serde_json::json;
+use validator::Validate;
 
 #[post("dao/")]
 async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) -> impl Responder {
     let dao = dao.into_inner();
+
+    if dao.validate().is_err() {
+        return HttpResponse::BadRequest().json(json!({
+            "message": "Invalid input",
+            "Error": dao.validate().unwrap_err()
+        }));
+    }
 
     let result = match create_dao(db, dao).await {
         Ok(result) => result,
@@ -88,6 +96,13 @@ async fn update_dao(
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
+    }
+
+    if dao.validate().is_err() {
+        return HttpResponse::BadRequest().json(json!({
+            "message": "Invalid input",
+            "Error": dao.validate().unwrap_err()
+        }));
     }
 
     let _ = match update_dao_by_id(db, &id, dao.into_inner()).await {
