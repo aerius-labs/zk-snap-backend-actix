@@ -1,7 +1,8 @@
 use futures::stream::StreamExt;
 use mongodb::error::Result as MongoResult;
+use mongodb::results::DeleteResult;
 use mongodb::{
-    bson::{doc, oid::ObjectId},
+    bson::{doc, extjson::de::Error, oid::ObjectId},
     Collection,
 };
 use serde::{Deserialize, Serialize};
@@ -47,9 +48,14 @@ where
         Ok(())
     }
 
-    pub async fn delete(&self, id: ObjectId) -> MongoResult<()> {
+    pub async fn delete(&self, id: ObjectId) -> Result<DeleteResult, Error> {
         let filter = doc! { "_id": id };
-        self.collection.delete_one(filter, None).await?;
-        Ok(())
+        let result = self
+            .collection
+            .delete_one(filter, None)
+            .await
+            .ok()
+            .expect("Error Deleting DAO");
+        Ok(result)
     }
 }

@@ -5,6 +5,7 @@ use crate::app::entities::dao_entity::Dao;
 use crate::app::repository::repository::Repository;
 use actix_web::web;
 use mongodb::bson::oid::ObjectId;
+use mongodb::results::DeleteResult;
 
 pub async fn create_dao(
     db: web::Data<Repository<Dao>>,
@@ -52,4 +53,17 @@ pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Resul
     .unwrap();
 
     Ok(result)
+}
+
+pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Result<u64, Error> {
+    let obj_id = ObjectId::parse_str(id).unwrap();
+
+    let result = match db.delete(obj_id).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Err(Error::new(ErrorKind::Other, e.to_string()));
+        }
+    };
+
+    Ok(result.deleted_count)
 }
