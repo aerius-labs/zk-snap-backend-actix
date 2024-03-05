@@ -1,6 +1,6 @@
 use futures::stream::StreamExt;
 use mongodb::error::Result as MongoResult;
-use mongodb::results::DeleteResult;
+use mongodb::results::{DeleteResult, UpdateResult};
 use mongodb::{
     bson::{doc, extjson::de::Error, oid::ObjectId},
     Collection,
@@ -42,10 +42,15 @@ where
         Ok(result)
     }
 
-    pub async fn update(&self, id: ObjectId, document: T) -> MongoResult<()> {
+    pub async fn update(&self, id: ObjectId, document: T) -> Result<UpdateResult, Error> {
         let filter = doc! { "_id": id };
-        self.collection.replace_one(filter, document, None).await?;
-        Ok(())
+        let result = self
+            .collection
+            .replace_one(filter, document, None)
+            .await
+            .ok()
+            .expect("Id not found in DAOs collection.");
+        Ok(result)
     }
 
     pub async fn delete(&self, id: ObjectId) -> Result<DeleteResult, Error> {
