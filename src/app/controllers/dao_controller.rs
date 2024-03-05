@@ -1,6 +1,7 @@
 use crate::app::repository::repository::Repository;
-use crate::app::services::dao_service::{create_dao, get_all_daos};
+use crate::app::services::dao_service::{create_dao, get_all_daos, get_dao_by_id};
 use crate::app::{dtos::dao_dto::CreateDaoDto, entities::dao_entity::Dao};
+use actix_web::web::Path;
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde_json::json;
 
@@ -35,4 +36,24 @@ async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
           "Error": e.to_string()
         })),
     }
+}
+
+#[get("dao/{id}")]
+async fn find_by_id(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl Responder {
+    let id = path.into_inner(); 
+    if id.is_empty() {
+        return HttpResponse::BadRequest().body("Invalid id")
+    }
+    let dao = match get_dao_by_id(db, &id).await {
+        Ok(result) => result,
+        Err(e) => {
+            println!("Failed to get DAO by id: {}", e);
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get DAO by id",
+                "Error": e.to_string()
+            }));
+        }
+    };
+
+    HttpResponse::Ok().json(dao)
 }

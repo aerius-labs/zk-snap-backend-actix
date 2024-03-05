@@ -40,3 +40,16 @@ pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<Dao>, Er
         }
     }
 }
+
+pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Result<Dao, Error> {
+    let obj_id = ObjectId::parse_str(id).unwrap();
+    let result = match db.find_by_id(obj_id).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Err(Error::new(ErrorKind::Other, e.to_string()));
+        }
+    }
+    .unwrap();
+
+    Ok(result)
+}
