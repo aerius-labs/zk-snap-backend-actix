@@ -5,7 +5,6 @@ use crate::app::entities::dao_entity::Dao;
 use crate::app::repository::repository::Repository;
 use actix_web::web;
 use mongodb::bson::oid::ObjectId;
-use mongodb::results::DeleteResult;
 
 pub async fn create_dao(
     db: web::Data<Repository<Dao>>,
