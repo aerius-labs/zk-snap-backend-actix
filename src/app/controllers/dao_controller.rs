@@ -72,7 +72,7 @@ async fn delete_dao(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl 
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
-    let _ = match delete_by_id(db, &id).await {
+    match delete_by_id(db, &id).await {
         Ok(result) => result,
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
@@ -105,7 +105,7 @@ async fn update_dao(
         }));
     }
 
-    let _ = match update_dao_by_id(db, &id, dao.into_inner()).await {
+    match update_dao_by_id(db, &id, dao.into_inner()).await {
         Ok(result) => result,
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
