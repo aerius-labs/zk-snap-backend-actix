@@ -1,1 +1,2 @@
-pub mod repository;
+pub mod generic_repository;
+pub mod traits;
