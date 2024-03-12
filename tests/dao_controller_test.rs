@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(post_resp.status(), StatusCode::CREATED);
         let body = test::read_body(post_resp).await;
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        let id = body["ObjectId"]["$oid"].as_str().unwrap();
+        let id = body["ObjectId"].as_str().unwrap();
 
         let get_req = test::TestRequest::get()
             .uri(&format!("/dao/{}", id))
