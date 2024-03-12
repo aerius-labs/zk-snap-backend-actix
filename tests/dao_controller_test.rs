@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, test, web, App};
 use zk_snap_backend_actix::app::controllers::dao_controller::{create, delete_dao, find_by_id};
 use zk_snap_backend_actix::app::dtos::dao_dto::CreateDaoDto;
 use zk_snap_backend_actix::app::entities::dao_entity::Dao;
-use zk_snap_backend_actix::app::repository::repository::Repository;
+use zk_snap_backend_actix::app::repository::generic_repository::Repository;
 
 #[cfg(test)]
 mod tests {
