@@ -2,7 +2,7 @@ use std::io::{Error, ErrorKind};
 
 use crate::app::dtos::dao_dto::CreateDaoDto;
 use crate::app::entities::dao_entity::Dao;
-use crate::app::repository::repository::Repository;
+use crate::app::repository::generic_repository::Repository;
 use actix_web::web;
 use mongodb::bson::oid::ObjectId;
 
@@ -36,12 +36,12 @@ pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<Dao>, Er
     match db.find_all().await {
         Ok(result) => Ok(result),
         Err(e) => {
-            return Err(Error::new(ErrorKind::Other, e.to_string()));
+            Err(Error::new(ErrorKind::Other, e.to_string()))
         }
     }
 }
 
-pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Result<Dao, Error> {
+pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<Dao, Error> {
     let result = match db.find_by_id(id).await {
         Ok(result) => result,
         Err(e) => {
@@ -54,14 +54,13 @@ pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Resul
     }
 }
 
-pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &String) -> Result<(), Error> {
-    let result = match db.delete(id).await {
-        Ok(result) => result,
+pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<(), Error> {
+    match db.delete(id).await {
+        Ok(result) => Ok(result),
         Err(e) => {
-            return Err(Error::new(ErrorKind::Other, e.to_string()));
+            Err(Error::new(ErrorKind::Other, e.to_string()))
         }
-    };
-    Ok(result)
+    }
 }
 
 pub async fn update_dao_by_id(
@@ -79,11 +78,10 @@ pub async fn update_dao_by_id(
         members: dao.members,
     };
 
-    let result = match db.update(id, dao_entity).await {
-        Ok(result) => result,
+    match db.update(id, dao_entity).await {
+        Ok(result) => Ok(result),
         Err(e) => {
-            return Err(Error::new(ErrorKind::Other, e.to_string()));
+            Err(Error::new(ErrorKind::Other, e.to_string()))
         }
-    };
-    Ok(result)
+    }
 }
