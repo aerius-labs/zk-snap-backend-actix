@@ -4,7 +4,9 @@ use validator::{Validate, ValidationError};
 
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
-        Err(ValidationError::new("Title should not be empty and not greater than 100 characters"))
+        Err(ValidationError::new(
+            "Title should not be empty and not greater than 100 characters",
+        ))
     } else {
         Ok(())
     }
@@ -12,7 +14,9 @@ fn validate_title_length(value: &str) -> Result<(), ValidationError> {
 
 fn validate_description_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 500 {
-        Err(ValidationError::new("Description should not be empty and not greater than 500 characters"))
+        Err(ValidationError::new(
+            "Description should not be empty and not greater than 500 characters",
+        ))
     } else {
         Ok(())
     }
@@ -32,10 +36,8 @@ pub struct CreateProposalDto {
     #[validate(length(min = 1))]
     pub dao_id: String,
 
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub start_time: chrono::DateTime<Utc>,
 
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub end_time: chrono::DateTime<Utc>,
 
     // Assume default values are provided if empty
@@ -51,10 +53,8 @@ pub struct UpdateProposalDto {
     #[validate(custom = "validate_description_length")]
     pub description: String,
 
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub start_time: chrono::DateTime<Utc>,
 
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub end_time: chrono::DateTime<Utc>,
 
     // Validation for uniqueness would need to be done manually or via a custom validator

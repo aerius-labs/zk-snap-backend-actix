@@ -35,9 +35,7 @@ pub async fn create_dao(
 pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<Dao>, Error> {
     match db.find_all().await {
         Ok(result) => Ok(result),
-        Err(e) => {
-            Err(Error::new(ErrorKind::Other, e.to_string()))
-        }
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }
 
@@ -57,9 +55,7 @@ pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<D
 pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<(), Error> {
     match db.delete(id).await {
         Ok(result) => Ok(result),
-        Err(e) => {
-            Err(Error::new(ErrorKind::Other, e.to_string()))
-        }
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }
 
@@ -80,8 +76,6 @@ pub async fn update_dao_by_id(
 
     match db.update(id, dao_entity).await {
         Ok(result) => Ok(result),
-        Err(e) => {
-            Err(Error::new(ErrorKind::Other, e.to_string()))
-        }
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }

@@ -66,7 +66,8 @@ where
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
         let obj_id = ObjectId::parse_str(id).unwrap();
         let filter = doc! { "_id": obj_id };
-        let result = self.collection
+        let result = self
+            .collection
             .replace_one(filter, document, None)
             .await
             .ok()
@@ -82,7 +83,8 @@ where
     pub async fn delete(&self, id: &str) -> RepositoryResult<()> {
         let obj_id = ObjectId::parse_str(id).unwrap();
         let filter = doc! { "_id": obj_id };
-        let result = self.collection
+        let result = self
+            .collection
             .delete_one(filter, None)
             .await
             .ok()

@@ -9,6 +9,5 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         dao_controller::delete_dao,
         dao_controller::update_dao,
         proposal_controller::create,
-        proposal_controller::find_all_proposals,
     ))
 }

@@ -17,7 +17,6 @@ async fn main() -> std::io::Result<()> {
     let dao_collection = database.collection::<Dao>("dao");
     let proposal_collection = database.collection::<Proposal>("proposal");
 
-
     let dao_service = Repository::new(dao_collection);
     let dao_service_data = web::Data::new(dao_service);
 
