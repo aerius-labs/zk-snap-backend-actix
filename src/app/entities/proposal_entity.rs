@@ -27,6 +27,9 @@ pub struct Proposal {
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub end_time: chrono::DateTime<chrono::Utc>,
 
+    #[serde(rename = "encryptedKeys")]
+    pub encrypted_keys: EncryptedKeys,
+
     #[serde(rename = "votingOptions")]
     pub voting_options: Vec<String>,
 
@@ -35,9 +38,14 @@ pub struct Proposal {
 
     #[serde(rename = "result")]
     pub result: Vec<String>,
+    // #[serde(rename = "userProofQueue")]
+    // pub user_proof_queue: Vec<Vote>,
+}
 
-    #[serde(rename = "userProofQueue")]
-    pub user_proof_queue: Vec<Vote>,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EncryptedKeys {
+    pub pub_key: String,
+    pub pvt_key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
