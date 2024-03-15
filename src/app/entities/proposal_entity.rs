@@ -42,7 +42,7 @@ pub struct Proposal {
     // pub user_proof_queue: Vec<Vote>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EncryptedKeys {
     pub pub_key: String,
     pub pvt_key: String,
