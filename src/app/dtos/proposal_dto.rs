@@ -45,6 +45,18 @@ pub struct CreateProposalDto {
     pub voting_options: Vec<String>,
 }
 
+// Assuming that your encryption service expects a JSON with "pvt" field
+#[derive(Serialize)]
+pub struct DecryptRequest {
+    pub pvt: String,
+}
+
+#[derive(Deserialize)]
+pub struct DecryptResponse {
+    // Adjust according to the actual response structure
+    pub value: String,
+}
+
 #[derive(Serialize, Deserialize, Validate, Debug)]
 pub struct UpdateProposalDto {
     #[validate(custom = "validate_title_length")]
