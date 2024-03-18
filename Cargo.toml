@@ -18,3 +18,8 @@ futures = "0.3"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1.25.0", features = ["rt", "time"] }
+voter = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran"}
+halo2-base = { git = "https://github.com/aerius-labs/halo2-lib.git", branch = "feat/secp256k1-hash2curve", default-features = false, features = ["halo2-axiom", "display"] }
+hex = "0.4"
+pse-poseidon = { git = "https://github.com/aerius-labs/pse-poseidon.git", branch = "feat/stateless-hash" }
