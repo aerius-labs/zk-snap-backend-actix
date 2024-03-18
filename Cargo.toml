@@ -1,7 +1,2 @@
-
 [workspace]
-
-members = [
-    "aggregator",
-    "zk-snap-backend-actix"
-]
+members = ["aggregator","zk-snap-backend"]
