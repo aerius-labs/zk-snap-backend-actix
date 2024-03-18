@@ -25,7 +25,7 @@ pub async fn create_dao(
     let root_str = hex::encode(root);
 
     let tree = merkle_tree.get_tree();
-    let  tree_vec =  encode_tree(&tree);
+
 
     let dao_entity = Dao {
         id: Some(ObjectId::new()),
@@ -33,7 +33,7 @@ pub async fn create_dao(
         description: dao.description,
         logo: dao.logo,
         members: dao.members,
-        members_tree: tree_vec,
+        members_tree: tree,
     };
 
     let object_id = match db.create(dao_entity).await {

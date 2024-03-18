@@ -1,3 +1,4 @@
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,7 @@ pub struct Dao {
 
     #[serde(rename = "members")]
     pub members: Vec<String>,
-    
+
     #[serde(rename = "membersTree")]
-    pub members_tree: Vec<Vec<String>>,
+    pub members_tree: Vec<Vec<Fr>>,
 }
