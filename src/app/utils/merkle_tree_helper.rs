@@ -1,24 +1,33 @@
-use hex::decode;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::BigPrimeField};
+use hex::decode;
 use pse_poseidon::Poseidon;
 use std::io::Error;
 
-fn spec_bytes_to_f<F: BigPrimeField>(bytes: &[u8; 32]) -> Result<[F;3], Error> {
+fn spec_bytes_to_f<F: BigPrimeField>(bytes: &[u8; 32]) -> Result<[F; 3], Error> {
     if bytes.len() != 32 {
-        return Err(Error::new(std::io::ErrorKind::InvalidInput, "Invalid bytes length"));
+        return Err(Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid bytes length",
+        ));
     }
-    let ve: Vec<F> = bytes.to_vec().chunks(11).map(|chunk|F::from_bytes_le(chunk)).collect();
+    let ve: Vec<F> = bytes
+        .to_vec()
+        .chunks(11)
+        .map(|chunk| F::from_bytes_le(chunk))
+        .collect();
     Ok([ve[0], ve[1], ve[2]])
 }
 
-pub fn preimage_to_leaf<F: BigPrimeField>(point: ([F;3], [F;3])) -> F { 
+pub fn preimage_to_leaf<F: BigPrimeField>(point: ([F; 3], [F; 3])) -> F {
     let mut hasher = Poseidon::<F, 3, 2>::new(8, 57);
     hasher.update(&point.0);
     hasher.update(&point.1);
     hasher.squeeze_and_reset()
 }
 
-pub fn public_key_to_coordinates<F: BigPrimeField>(public_key_str: &str) -> Result<([F;3], [F;3]), Error> {
+pub fn public_key_to_coordinates<F: BigPrimeField>(
+    public_key_str: &str,
+) -> Result<([F; 3], [F; 3]), Error> {
     let decoded_public_key = decode(public_key_str).ok().and_then(|bytes| {
         if bytes.len() == 65 && bytes[0] == 0x04 {
             Some(bytes[1..].to_vec())
@@ -27,17 +36,23 @@ pub fn public_key_to_coordinates<F: BigPrimeField>(public_key_str: &str) -> Resu
         }
     });
 
-    let x = decoded_public_key.as_ref().map(|bytes| {
-        let mut x = [0u8; 32];
-        x.copy_from_slice(&bytes[..32]);
-        x
-    }).unwrap();
+    let x = decoded_public_key
+        .as_ref()
+        .map(|bytes| {
+            let mut x = [0u8; 32];
+            x.copy_from_slice(&bytes[..32]);
+            x
+        })
+        .unwrap();
 
-    let y = decoded_public_key.as_ref().map(|bytes| {
-        let mut y = [0u8; 32];
-        y.copy_from_slice(&bytes[32..]);
-        y
-    }).unwrap();
+    let y = decoded_public_key
+        .as_ref()
+        .map(|bytes| {
+            let mut y = [0u8; 32];
+            y.copy_from_slice(&bytes[32..]);
+            y
+        })
+        .unwrap();
 
     Ok((spec_bytes_to_f(&x)?, spec_bytes_to_f(&y)?))
 }

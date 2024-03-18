@@ -48,17 +48,16 @@ pub struct CreateProposalDto {
 #[derive(Serialize, Deserialize)]
 pub struct MerkleProofVoter {
     Proof: Vec<Fr>,
-    Helper: Vec<Fr>
+    Helper: Vec<Fr>,
 }
 
 impl MerkleProofVoter {
     pub fn new(proof: Vec<Fr>, helper: Vec<Fr>) -> Self {
         MerkleProofVoter {
             Proof: proof,
-            Helper: helper
+            Helper: helper,
         }
     }
-    
 }
 
 // Assuming that your encryption service expects a JSON with "pvt" field

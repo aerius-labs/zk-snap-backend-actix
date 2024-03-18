@@ -7,8 +7,8 @@ use crate::app::utils::merkle_tree_helper::{encode_tree, from_members_to_leaf};
 use actix_web::web;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use mongodb::bson::oid::ObjectId;
-use voter::merkletree::native::MerkleTree;
 use pse_poseidon::Poseidon;
+use voter::merkletree::native::MerkleTree;
 
 pub async fn create_dao(
     db: web::Data<Repository<Dao>>,
@@ -25,7 +25,6 @@ pub async fn create_dao(
     let root_str = hex::encode(root);
 
     let tree = merkle_tree.get_tree();
-
 
     let dao_entity = Dao {
         id: Some(ObjectId::new()),
@@ -80,7 +79,6 @@ pub async fn update_dao_by_id(
 ) -> Result<(), Error> {
     let obj_id = ObjectId::parse_str(id).unwrap();
     let db_dao = db.find_by_id(id).await.unwrap().unwrap();
-    
 
     let dao_entity = Dao {
         id: Some(obj_id),
