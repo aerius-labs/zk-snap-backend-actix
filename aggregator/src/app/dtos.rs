@@ -1,7 +1,13 @@
-use serde::{Deserialize, Serialize};
+use num_bigint::BigUint;
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AggregatorBaseDto;
+#[derive(Debug, Deserialize)]
+pub struct AggregatorBaseDto {
+    pub pk_enc: [BigUint; 2],
+    pub membership_root: BigUint,
+    pub proposal_id: u16,
+    pub init_nullifier_root: BigUint,
+}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AggregatorReccursiveDto;
+#[derive(Debug, Deserialize)]
+pub struct AggregatorRecursiveDto;
