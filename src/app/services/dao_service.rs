@@ -3,8 +3,12 @@ use std::io::{Error, ErrorKind};
 use crate::app::dtos::dao_dto::CreateDaoDto;
 use crate::app::entities::dao_entity::Dao;
 use crate::app::repository::generic_repository::Repository;
+use crate::app::utils::merkle_tree_helper::{encode_tree, from_members_to_leaf};
 use actix_web::web;
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use mongodb::bson::oid::ObjectId;
+use voter::merkletree::native::MerkleTree;
+use pse_poseidon::Poseidon;
 
 pub async fn create_dao(
     db: web::Data<Repository<Dao>>,
@@ -14,12 +18,22 @@ pub async fn create_dao(
         return Err(Error::new(ErrorKind::InvalidInput, "Members are required"));
     }
 
+    let leaves: Vec<Fr> = from_members_to_leaf(dao.members.as_slice()).unwrap();
+    let mut hash = Poseidon::<Fr, 3, 2>::new(8, 57);
+    let merkle_tree = MerkleTree::new(&mut hash, leaves).unwrap();
+    let root = merkle_tree.get_root().to_bytes();
+    let root_str = hex::encode(root);
+
+    let tree = merkle_tree.get_tree();
+    let  tree_vec =  encode_tree(&tree);
+
     let dao_entity = Dao {
         id: Some(ObjectId::new()),
         name: dao.name,
         description: dao.description,
         logo: dao.logo,
         members: dao.members,
+        members_tree: tree_vec,
     };
 
     let object_id = match db.create(dao_entity).await {
@@ -65,13 +79,16 @@ pub async fn update_dao_by_id(
     dao: CreateDaoDto,
 ) -> Result<(), Error> {
     let obj_id = ObjectId::parse_str(id).unwrap();
+    let db_dao = db.find_by_id(id).await.unwrap().unwrap();
+    
 
     let dao_entity = Dao {
         id: Some(obj_id),
         name: dao.name,
         description: dao.description,
         logo: dao.logo,
-        members: dao.members,
+        members: db_dao.members,
+        members_tree: db_dao.members_tree,
     };
 
     match db.update(id, dao_entity).await {

@@ -18,10 +18,9 @@ pub struct Dao {
     #[serde(rename = "logo")]
     pub logo: Option<String>,
 
-    // #[serde(rename = "membersRoot")]
-    // pub members_root: String,
     #[serde(rename = "members")]
     pub members: Vec<String>,
-    // #[serde(rename = "membersTree")]
-    // pub members_tree: String,
+    
+    #[serde(rename = "membersTree")]
+    pub members_tree: Vec<Vec<String>>,
 }
