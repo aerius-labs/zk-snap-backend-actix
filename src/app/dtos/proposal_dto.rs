@@ -1,4 +1,5 @@
 use chrono::Utc;
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
@@ -43,6 +44,21 @@ pub struct CreateProposalDto {
     // Assume default values are provided if empty
     #[serde(default = "default_voting_options")]
     pub voting_options: Vec<String>,
+}
+#[derive(Serialize, Deserialize)]
+pub struct MerkleProofVoter {
+    Proof: Vec<Fr>,
+    Helper: Vec<Fr>
+}
+
+impl MerkleProofVoter {
+    pub fn new(proof: Vec<Fr>, helper: Vec<Fr>) -> Self {
+        MerkleProofVoter {
+            Proof: proof,
+            Helper: helper
+        }
+    }
+    
 }
 
 // Assuming that your encryption service expects a JSON with "pvt" field
