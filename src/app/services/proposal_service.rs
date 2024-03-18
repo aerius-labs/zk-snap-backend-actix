@@ -1,17 +1,23 @@
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use mongodb::bson::oid::ObjectId;
 use reqwest::Client;
+use voter::merkletree::native::MerkleTree;
 use std::env;
 use std::io::{Error, ErrorKind};
 use tokio::time::{sleep_until, Instant};
+use pse_poseidon::Poseidon;
 
 use super::dao_service;
+use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
+use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
+    utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
 use actix_web::web;
 
@@ -59,6 +65,23 @@ pub async fn create_proposal(
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
+}
+
+pub async fn get_merkle_proof(
+    doa_db: web::Data<Repository<Dao>>,
+    dao_id: &str,
+    voter_pub_key: &str
+) -> Result<MerkleProofVoter, Error>{
+    let dao = dao_service::get_dao_by_id(doa_db, dao_id).await.unwrap();
+    let members = dao.members;
+    let leaves = from_members_to_leaf(&members).unwrap();
+    let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
+    let merkle_tree = MerkleTree::new(&mut hasher, leaves).unwrap();
+    let cord: ([Fr; 3],[Fr; 3])  = public_key_to_coordinates(voter_pub_key).unwrap();
+    let leaf = preimage_to_leaf(cord);
+    let proof = merkle_tree.get_leaf_proof(&leaf);
+    let proof = MerkleProofVoter::new(proof.0, proof.1);
+    Ok(proof)
 }
 
 async fn schedule_event(
