@@ -1,7 +1,8 @@
+use aggregator::wrapper::common::Snark;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Proposal {
     #[serde(rename = "_id")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -38,6 +39,9 @@ pub struct Proposal {
 
     #[serde(rename = "result")]
     pub result: Vec<String>,
+
+    #[serde(rename = "SnarkProof")]
+    pub snark_proof: Snark,
     // #[serde(rename = "userProofQueue")]
     // pub user_proof_queue: Vec<Vote>,
 }
