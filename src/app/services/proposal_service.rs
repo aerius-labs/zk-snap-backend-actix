@@ -15,6 +15,7 @@ use crate::app::dtos::aggregator_request_dto::{self, AggregatorBaseDto};
 use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
 use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
+use crate::app::utils::nullifier_helper::generate_nullifier_root;
 use crate::app::utils::parse_string_pub_key::convert_to_public_key_big_int;
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
@@ -49,13 +50,8 @@ pub async fn create_proposal(
     let encrypted_keys = generate_encrypted_keys(proposal.end_time).await?;
 
     // TODO: Remove this hardcoded value, use root calculation function here for this provided members
-    let nulifier_root = match BigUint::from_str_radix(
-        "18cf4c04e099a38e037aed72375bf7bb68cffc722ed7c1b2c0c3909af8e785d0",
-        16,
-    ) {
-        Ok(root) => root,
-        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-    };
+    let members_count = dao.members.len();
+    let nulifier_root = generate_nullifier_root(members_count as u64)?;
 
     // this converts the public key to a big int
     let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
