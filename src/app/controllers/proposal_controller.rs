@@ -6,10 +6,10 @@ use crate::app::{
     dtos::proposal_dto::{self, CreateProposalDto},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
-    services::proposal_service::create_proposal,
+    services::proposal_service::{create_proposal, get_merkle_proof},
 };
 
-#[post("proposal/")]
+#[post("proposal/}")]
 async fn create(
     db: web::Data<Repository<Proposal>>,
     dao_client: web::Data<Repository<Dao>>,
@@ -40,4 +40,23 @@ async fn create(
             }));
         }
     }
+}
+
+#[get("proposal/{dao_id}/{member_pub_key}")]
+async fn get_merkle_proof_from_pub(
+    dao_db: web::Data<Repository<Dao>>,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let (dao_id, member_pub_key) = path.into_inner();
+
+    match get_merkle_proof(dao_db, &dao_id, &member_pub_key).await {
+        Ok(result) => return HttpResponse::Ok().json(result),
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get merkle proof",
+                "Error": e.to_string()
+            }));
+        }
+    };
+
 }

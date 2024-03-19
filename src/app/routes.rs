@@ -9,5 +9,6 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         dao_controller::delete_dao,
         dao_controller::update_dao,
         proposal_controller::create,
+        proposal_controller::get_merkle_proof_from_pub,
     ))
 }
