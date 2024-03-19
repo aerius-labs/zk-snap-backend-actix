@@ -47,15 +47,15 @@ pub struct CreateProposalDto {
 }
 #[derive(Serialize, Deserialize)]
 pub struct MerkleProofVoter {
-    Proof: Vec<Fr>,
-    Helper: Vec<Fr>,
+    proof: Vec<Fr>,
+    helper: Vec<Fr>,
 }
 
 impl MerkleProofVoter {
     pub fn new(proof: Vec<Fr>, helper: Vec<Fr>) -> Self {
         MerkleProofVoter {
-            Proof: proof,
-            Helper: helper,
+            proof: proof,
+            helper: helper,
         }
     }
 }
