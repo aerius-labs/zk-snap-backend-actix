@@ -29,7 +29,6 @@ pub fn preimage_to_leaf<F: BigPrimeField>(point: ([F; 3], [F; 3])) -> F {
 pub fn public_key_to_coordinates<F: BigPrimeField>(
     public_key_str: &str,
 ) -> Result<([F; 3], [F; 3]), Error> {
-    
     let decoded_public_key = match decode(&public_key_str[2..]) {
         Ok(bytes) => bytes,
         Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
@@ -42,19 +41,16 @@ pub fn public_key_to_coordinates<F: BigPrimeField>(
         ));
     }
 
-    let x: &[u8; 32] = match decoded_public_key[0..32].try_into(){
+    let x: &[u8; 32] = match decoded_public_key[0..32].try_into() {
         Ok(bytes) => bytes,
         Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
     };
-    let y: &[u8; 32] = match decoded_public_key[32..64].try_into(){
+    let y: &[u8; 32] = match decoded_public_key[32..64].try_into() {
         Ok(bytes) => bytes,
         Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
     };
 
-    Ok((
-        spec_bytes_to_f::<F>(x)?,
-        spec_bytes_to_f::<F>(y)?,
-    ))
+    Ok((spec_bytes_to_f::<F>(x)?, spec_bytes_to_f::<F>(y)?))
 }
 
 pub fn from_members_to_leaf<F: BigPrimeField>(public_key_str: &[String]) -> Result<Vec<F>, Error> {
