@@ -1,3 +1,4 @@
+use aggregator::wrapper::common::Snark;
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
@@ -10,9 +11,11 @@ use tokio::time::{sleep_until, Instant};
 use voter::merkletree::native::MerkleTree;
 
 use super::dao_service;
+use crate::app::dtos::aggregator_request_dto::{self, AggregatorBaseDto};
 use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
 use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
+use crate::app::utils::parse_string_pub_key::convert_to_public_key_big_int;
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
@@ -20,6 +23,8 @@ use crate::app::{
     utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
 use actix_web::web;
+use num_bigint::BigUint;
+use num_traits::Num;
 
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
@@ -43,6 +48,29 @@ pub async fn create_proposal(
     // this generates the encrypted keys
     let encrypted_keys = generate_encrypted_keys(proposal.end_time).await?;
 
+    // TODO: Remove this hardcoded value, use root calculation function here for this provided members
+    let nulifier_root = match BigUint::from_str_radix(
+        "18cf4c04e099a38e037aed72375bf7bb68cffc722ed7c1b2c0c3909af8e785d0",
+        16,
+    ) {
+        Ok(root) => root,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
+
+    // this converts the public key to a big int
+    let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
+
+    // this creates the base proof dto
+    let aggregator_request_dto = AggregatorBaseDto {
+        pk_enc: public_key,
+        membership_root: dao.members_root,
+        proposal_id: 0 as u16,
+        init_nullifier_root: nulifier_root,
+    };
+
+    // this creates the base proof
+    let base_proof = create_base_proof(aggregator_request_dto).await?;
+
     let proposal = Proposal {
         creator: proposal.creator,
         title: proposal.title,
@@ -50,16 +78,16 @@ pub async fn create_proposal(
         dao_id: proposal.dao_id,
         start_time: proposal.start_time,
         end_time: proposal.end_time,
-        encrypted_keys,
+        encrypted_keys: encrypted_keys.clone(),
         voting_options: proposal.voting_options,
         status: "Pending".to_string(),
         result: vec![],
+        snark_proof: base_proof,
         id: Some(ObjectId::new()),
     };
-
     // this schedules the event to handle the end of the proposal
-    let proposal_id = proposal.id.unwrap().to_string();
-    schedule_event(&proposal_id, db.clone(), proposal.end_time).await;
+    // let proposal_id = proposal.id.unwrap().to_string();
+    // schedule_event(&proposal_id, db.clone(), proposal.end_time).await;
 
     match db.create(proposal).await {
         Ok(result) => Ok(result),
@@ -72,12 +100,15 @@ pub async fn get_merkle_proof(
     dao_id: &str,
     voter_pub_key: &str,
 ) -> Result<MerkleProofVoter, Error> {
-    let dao = dao_service::get_dao_by_id(doa_db, dao_id).await.unwrap();
+    let dao = dao_service::get_dao_by_id(doa_db, dao_id).await?;
     let members = dao.members;
-    let leaves = from_members_to_leaf(&members).unwrap();
+    let leaves = from_members_to_leaf(&members)?;
     let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
-    let merkle_tree = MerkleTree::new(&mut hasher, leaves).unwrap();
-    let cord: ([Fr; 3], [Fr; 3]) = public_key_to_coordinates(voter_pub_key).unwrap();
+    let merkle_tree = match MerkleTree::new(&mut hasher, leaves) {
+        Ok(tree) => tree,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
+    let cord: ([Fr; 3], [Fr; 3]) = public_key_to_coordinates(voter_pub_key)?;
     let leaf = preimage_to_leaf(cord);
     let proof = merkle_tree.get_leaf_proof(&leaf);
     let proof = MerkleProofVoter::new(proof.0, proof.1);
@@ -142,7 +173,10 @@ async fn decrypt_keys(pvt: String) -> Result<String, Error> {
         Ok(resp) => {
             if resp.status().is_success() {
                 // Parse the JSON response
-                let json: DecryptResponse = resp.json().await.unwrap();
+                let json: DecryptResponse = match resp.json().await {
+                    Ok(json) => json,
+                    Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+                };
                 Ok(json.value)
             } else {
                 Err(Error::new(
@@ -158,6 +192,30 @@ async fn decrypt_keys(pvt: String) -> Result<String, Error> {
     }
 }
 
+async fn create_base_proof(aggregator_request_dto: AggregatorBaseDto) -> Result<Snark, Error> {
+    let url = env::var("AGGREGATOR_URL").expect("URL is not set");
+    let client = Client::new();
+
+    // Send a POST request
+    let response = match client.post(url).json(&aggregator_request_dto).send().await {
+        Ok(response) => response,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+    };
+
+    if response.status().is_success() {
+        let json: Snark = match response.json().await {
+            Ok(json) => json,
+            Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+        };
+        Ok(json)
+    } else {
+        Err(Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to create base proof",
+        ))
+    }
+}
+
 async fn generate_encrypted_keys(end_time: DateTime<Utc>) -> Result<EncryptedKeys, Error> {
     dotenv().ok();
     let url = env::var("ENCRYPTION_URL").expect("URL is not set");
@@ -165,10 +223,16 @@ async fn generate_encrypted_keys(end_time: DateTime<Utc>) -> Result<EncryptedKey
 
     let url = url.to_owned() + &formatted_date_time;
 
-    let response = reqwest::Client::new().get(&url).send().await.unwrap();
+    let response = match reqwest::Client::new().get(&url).send().await {
+        Ok(response) => response,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
 
     if response.status().is_success() {
-        let json: EncryptedKeys = response.json().await.unwrap();
+        let json: EncryptedKeys = match response.json().await {
+            Ok(json) => json,
+            Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+        };
         Ok(json)
     } else {
         Err(Error::new(
