@@ -14,6 +14,7 @@ use halo2_base::{
 };
 use num_bigint::BigUint;
 use num_traits::Num;
+use voter::EncryptionPublicKey;
 
 use super::dtos::AggregatorBaseDto;
 
@@ -23,17 +24,17 @@ fn biguint_to_88_bit_limbs(x: BigUint) -> Vec<Fr> {
     output
 }
 
-fn paillier_enc(pk_enc: [BigUint; 2], m: &BigUint) -> BigUint {
+fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint) -> BigUint {
     let r = BigUint::from(0u64);
-    let n = pk_enc[0].clone();
-    let g = &pk_enc[1];
+    let n = pk_enc.n.clone();
+    let g = &pk_enc.g;
     let c = (g.modpow(m, &(n.clone() * &n.clone()))
         * r.modpow(&n.clone(), &(n.clone() * &n.clone())))
         % (n.clone() * n.clone());
     c
 }
 
-fn get_init_vote(pk_enc: [BigUint; 2]) -> Vec<Fr> {
+fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
     let init_vote = (0..5)
         .map(|_| paillier_enc(pk_enc.clone(), &BigUint::from(0u64)))
         .collect::<Vec<BigUint>>();
@@ -58,7 +59,7 @@ fn generate_base_witness(
         num_instance_columns: 1,
     };
 
-    if input.pk_enc[0] <= BigUint::from(0u64) || input.pk_enc[1] <= BigUint::from(0u64) {
+    if input.pk_enc.n <= BigUint::from(0u64) || input.pk_enc.g <= BigUint::from(0u64) {
         return Err(Error::new(ErrorKind::InvalidData, "Invalid Encryption Key"));
     }
     let pk_enc = input.pk_enc;
@@ -89,8 +90,8 @@ fn generate_base_witness(
     }
     let init_nullifier_root = biguint_to_fe::<Fr>(&input.init_nullifier_root);
 
-    let pk_enc_n = biguint_to_88_bit_limbs(pk_enc[0].clone());
-    let pk_enc_g = biguint_to_88_bit_limbs(pk_enc[1].clone());
+    let pk_enc_n = biguint_to_88_bit_limbs(pk_enc.n.clone());
+    let pk_enc_g = biguint_to_88_bit_limbs(pk_enc.g.clone());
 
     let init_vote = get_init_vote(pk_enc.clone());
 

@@ -9,5 +9,6 @@ num-bigint = { version = "0.4.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 halo2-base = { git = "https://github.com/aerius-labs/halo2-lib.git", branch = "feat/secp256k1-hash2curve", default-features = false, features = ["halo2-axiom", "display"] }
 aggregator = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+voter = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
 serde_json = "1.0.114"
 num-traits = "0.2.18"
