@@ -19,3 +19,13 @@ pub struct AggregatorRecursiveDto {
     pub previous: Snark,
     pub nullifier_tree_input: IndexedMerkleTreeInput<Fr>,
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct VoterDto {
+    // Backend
+    pub proposal_id: u16,
+    pub pk_enc: EncryptionPublicKey,
+    pub membership_root: Fr,
+    pub membership_proof: Vec<Fr>,
+    pub membership_proof_helper: Vec<Fr>,
+}

@@ -2,7 +2,8 @@ use halo2_base::{
     halo2_proofs::halo2curves::{bn256::Fr, secp256k1::Secp256k1Affine, serde::SerdeObject},
     utils::{fe_to_biguint, BigPrimeField, ScalarField},
 };
-use num_bigint::BigUint;
+use num_bigint::{BigUint, RandBigInt};
+use rand::thread_rng;
 use voter::EncryptionPublicKey;
 
 pub(crate) fn biguint_to_88_bit_limbs(x: BigUint) -> Vec<Fr> {
@@ -12,14 +13,13 @@ pub(crate) fn biguint_to_88_bit_limbs(x: BigUint) -> Vec<Fr> {
 }
 
 pub(crate) fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
-    x.iter()        
+    x.iter()
         .enumerate()
         .map(|(i, limb)| fe_to_biguint(limb) * BigUint::from(2u64).pow(88 * (i as u32)))
         .sum()
 }
 
-pub(crate) fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint) -> BigUint {
-    let r = BigUint::from(0u64);
+pub(crate) fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint, r: &BigUint) -> BigUint {
     let n = pk_enc.n.clone();
     let g = &pk_enc.g;
     let c = (g.modpow(m, &(n.clone() * &n.clone()))
@@ -30,7 +30,13 @@ pub(crate) fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint) -> BigUint 
 
 pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
     let init_vote = (0..5)
-        .map(|_| paillier_enc(pk_enc.clone(), &BigUint::from(0u64)))
+        .map(|_| {
+            paillier_enc(
+                pk_enc.clone(),
+                &BigUint::from(0u64),
+                &thread_rng().gen_biguint(176),
+            )
+        })
         .collect::<Vec<BigUint>>();
     let init_vote = init_vote
         .iter()
