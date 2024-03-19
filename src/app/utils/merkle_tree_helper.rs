@@ -1,3 +1,4 @@
+use bson::de;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::BigPrimeField};
 use hex::decode;
 use pse_poseidon::Poseidon;
@@ -28,39 +29,38 @@ pub fn preimage_to_leaf<F: BigPrimeField>(point: ([F; 3], [F; 3])) -> F {
 pub fn public_key_to_coordinates<F: BigPrimeField>(
     public_key_str: &str,
 ) -> Result<([F; 3], [F; 3]), Error> {
-    let decoded_public_key = decode(public_key_str).ok().and_then(|bytes| {
-        if bytes.len() == 65 && bytes[0] == 0x04 {
-            Some(bytes[1..].to_vec())
-        } else {
-            None
-        }
-    });
+    
+    let decoded_public_key = match decode(&public_key_str[2..]) {
+        Ok(bytes) => bytes,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
+    };
 
-    let x = decoded_public_key
-        .as_ref()
-        .map(|bytes| {
-            let mut x = [0u8; 32];
-            x.copy_from_slice(&bytes[..32]);
-            x
-        })
-        .unwrap();
+    if decoded_public_key.len() != 64 {
+        return Err(Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid public key length",
+        ));
+    }
 
-    let y = decoded_public_key
-        .as_ref()
-        .map(|bytes| {
-            let mut y = [0u8; 32];
-            y.copy_from_slice(&bytes[32..]);
-            y
-        })
-        .unwrap();
+    let x: &[u8; 32] = match decoded_public_key[0..32].try_into(){
+        Ok(bytes) => bytes,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
+    };
+    let y: &[u8; 32] = match decoded_public_key[32..64].try_into(){
+        Ok(bytes) => bytes,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::InvalidInput, e.to_string())),
+    };
 
-    Ok((spec_bytes_to_f(&x)?, spec_bytes_to_f(&y)?))
+    Ok((
+        spec_bytes_to_f::<F>(x)?,
+        spec_bytes_to_f::<F>(y)?,
+    ))
 }
 
 pub fn from_members_to_leaf<F: BigPrimeField>(public_key_str: &[String]) -> Result<Vec<F>, Error> {
     let mut leaves = Vec::new();
     for pk_str in public_key_str {
-        let coordinates = public_key_to_coordinates(pk_str).unwrap();
+        let coordinates = public_key_to_coordinates(pk_str)?;
         let leaf = preimage_to_leaf(coordinates);
         leaves.push(leaf);
     }
