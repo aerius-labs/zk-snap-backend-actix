@@ -3,3 +3,5 @@
 Cargo.lock
 .env
 **/params
+**/build
+**/proving-key

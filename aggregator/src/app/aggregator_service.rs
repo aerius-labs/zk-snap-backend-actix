@@ -1,49 +1,37 @@
-use std::io::{Error, ErrorKind};
+use std::{
+    env, fs,
+    io::{BufReader, Error, ErrorKind},
+};
 
-use aggregator::wrapper::{common::Snark, recursion::RecursionCircuit};
+use aggregator::{
+    state_transition::{StateTransitionCircuit, StateTransitionInput},
+    wrapper::{
+        common::{gen_snark, Snark},
+        recursion::RecursionCircuit,
+    },
+};
 use halo2_base::{
-    gates::circuit::BaseCircuitParams,
+    gates::circuit::{builder::BaseCircuitBuilder, BaseCircuitParams},
     halo2_proofs::{
         halo2curves::{
-            bn256::{Bn256, Fr},
+            bn256::{Bn256, Fr, G1Affine},
             ff::PrimeField,
         },
+        plonk::ProvingKey,
         poly::kzg::commitment::ParamsKZG,
     },
-    utils::{biguint_to_fe, fs::gen_srs, ScalarField},
+    utils::{biguint_to_fe, fs::gen_srs},
 };
 use num_bigint::BigUint;
 use num_traits::Num;
 use voter::EncryptionPublicKey;
 
-use super::dtos::AggregatorBaseDto;
+use crate::app::utils::{compressed_to_affine, limbs_to_biguint};
 
-fn biguint_to_88_bit_limbs(x: BigUint) -> Vec<Fr> {
-    let mut output = Vec::<Fr>::new();
-    output.extend(x.to_bytes_le().chunks(11).map(Fr::from_bytes_le));
-    output
-}
-
-fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint) -> BigUint {
-    let r = BigUint::from(0u64);
-    let n = pk_enc.n.clone();
-    let g = &pk_enc.g;
-    let c = (g.modpow(m, &(n.clone() * &n.clone()))
-        * r.modpow(&n.clone(), &(n.clone() * &n.clone())))
-        % (n.clone() * n.clone());
-    c
-}
-
-fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
-    let init_vote = (0..5)
-        .map(|_| paillier_enc(pk_enc.clone(), &BigUint::from(0u64)))
-        .collect::<Vec<BigUint>>();
-    let init_vote = init_vote
-        .iter()
-        .flat_map(|x| biguint_to_88_bit_limbs(x.clone()))
-        .collect::<Vec<Fr>>();
-    init_vote
-}
+use super::{
+    dtos::{AggregatorBaseDto, AggregatorRecursiveDto},
+    utils::{biguint_to_88_bit_limbs, get_init_vote},
+};
 
 fn generate_base_witness(
     input: AggregatorBaseDto,
@@ -110,6 +98,81 @@ fn generate_base_witness(
     Ok((params, config, base_instances))
 }
 
+fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snark, Error> {
+    let voter = input.voter;
+    let previous = input.previous;
+
+    // pk_enc
+    let pk_enc = EncryptionPublicKey {
+        n: limbs_to_biguint(voter.instances[0][0..2].to_vec()),
+        g: limbs_to_biguint(voter.instances[0][2..4].to_vec()),
+    };
+
+    let incoming_vote: Vec<BigUint> = (0..5)
+        .map(|i| {
+            let start = (i + 1) * 5;
+            let end = start + 5;
+            limbs_to_biguint(voter.instances[0][start..end].to_vec())
+        })
+        .collect();
+
+    let prev_vote: Vec<BigUint> = (0..5)
+        .map(|i| {
+            let start = (i + 1) * 5;
+            let end = start + 5;
+            limbs_to_biguint(previous.instances[0][start..end].to_vec())
+        })
+        .collect();
+
+    let nullifier = compressed_to_affine::<Fr>([
+        voter.instances[0][25],
+        voter.instances[0][26],
+        voter.instances[0][27],
+        voter.instances[0][28],
+    ])
+    .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid nullifier"))?;
+
+    let state_transition_input = StateTransitionInput {
+        pk_enc,
+        incoming_vote,
+        prev_vote,
+        nullifier_tree: input.nullifier_tree_input,
+        nullifier,
+    };
+
+    const K: usize = 15;
+    let params = gen_srs(K as u32);
+    let config = BaseCircuitParams {
+        k: K,
+        num_advice_per_phase: vec![3],
+        num_lookup_advice_per_phase: vec![1, 0, 0],
+        num_fixed: 1,
+        lookup_bits: Some(K - 1),
+        num_instance_columns: 1,
+    };
+
+    let circuit = StateTransitionCircuit::<Fr>::new(config.clone(), state_transition_input);
+
+    let build_dir = env::current_dir()
+        .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?
+        .join("aggregator")
+        .join("build");
+    fs::create_dir_all(&build_dir).unwrap();
+
+    let file = fs::read(build_dir.join("state_transition_pk.bin"))
+        .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
+
+    let pk_reader = &mut BufReader::new(file.as_slice());
+    let pk = ProvingKey::<G1Affine>::read::<BufReader<&[u8]>, BaseCircuitBuilder<Fr>>(
+        pk_reader,
+        halo2_base::halo2_proofs::SerdeFormat::RawBytesUnchecked,
+        config,
+    )
+    .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
+
+    Ok(gen_snark(&params, &pk, circuit))
+}
+
 pub async fn generate_base_proof(input: AggregatorBaseDto) -> Result<Snark, Error> {
     let (params, config, base_instances) = generate_base_witness(input)?;
     let base_snark = RecursionCircuit::initial_snark(&params, None, config, base_instances);
@@ -117,6 +180,43 @@ pub async fn generate_base_proof(input: AggregatorBaseDto) -> Result<Snark, Erro
     Ok(base_snark)
 }
 
-pub async fn generate_recursive_proof() -> Result<(), Error> {
-    unimplemented!()
+pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<Snark, Error> {
+    let state_transition_snark = generate_state_transition_proof(input.clone())?;
+
+    let k: usize = 22;
+    let params = gen_srs(k as u32);
+    let config = BaseCircuitParams {
+        k,
+        num_advice_per_phase: vec![4],
+        num_lookup_advice_per_phase: vec![1, 0, 0],
+        num_fixed: 1,
+        lookup_bits: Some(k - 1),
+        num_instance_columns: 1,
+    };
+
+    let build_dir = env::current_dir()
+        .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?
+        .join("aggregator")
+        .join("build");
+    fs::create_dir_all(&build_dir).unwrap();
+    let file = fs::read(build_dir.join("recursion_pk.bin")).unwrap();
+    let recursion_pk_reader = &mut BufReader::new(file.as_slice());
+    let recursion_pk = ProvingKey::<G1Affine>::read::<BufReader<&[u8]>, BaseCircuitBuilder<Fr>>(
+        recursion_pk_reader,
+        halo2_base::halo2_proofs::SerdeFormat::RawBytesUnchecked,
+        config.clone(),
+    )
+    .unwrap();
+
+    let circuit = RecursionCircuit::new(
+        halo2_base::gates::circuit::CircuitBuilderStage::Prover,
+        &params,
+        input.voter,
+        state_transition_snark,
+        input.previous,
+        input.num_round as usize,
+        config,
+    );
+
+    Ok(gen_snark(&params, &recursion_pk, circuit))
 }
