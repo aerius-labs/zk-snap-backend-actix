@@ -1,5 +1,6 @@
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use mongodb::bson::oid::ObjectId;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,4 +25,7 @@ pub struct Dao {
 
     #[serde(rename = "membersTree")]
     pub members_tree: Vec<Vec<Fr>>,
+
+    #[serde(rename = "membersRoot")]
+    pub members_root: BigUint,
 }
