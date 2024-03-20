@@ -4,6 +4,8 @@ use hex::decode;
 use pse_poseidon::Poseidon;
 use std::io::Error;
 
+use crate::app::utils::nullifier_helper::nearest_power_of_two;
+
 fn spec_bytes_to_f<F: BigPrimeField>(bytes: &[u8; 32]) -> Result<[F; 3], Error> {
     if bytes.len() != 32 {
         return Err(Error::new(
@@ -94,3 +96,27 @@ pub fn decode_tree(input: &Vec<Vec<String>>) -> Vec<Vec<Fr>> {
         })
         .collect()
 }
+
+// pub fn from_members_to_leaf<F: BigPrimeField>(public_key_str: &[String]) -> Result<Vec<F>, Error> {
+//     let mut leaves = Vec::new();
+
+//     for pk_str in public_key_str {
+//         let coordinates = public_key_to_coordinates(pk_str)?;
+//         let leaf = preimage_to_leaf(coordinates);
+//         leaves.push(leaf);
+//     }
+
+//     let total_num_leafs = nearest_power_of_two(public_key_str.len() as u64);
+
+//     let mut hasher = Poseidon::<F, 3, 2>::new(8, 57);
+//     hasher.update(F::zero());
+//     let zero_hash = hasher.squeeze_and_reset();
+
+//     for i in public_key_str.len() as u64 -1..total_num_leafs {
+//         leaves.push(zero_hash);
+//     }
+
+//     assert_eq!(leaves.len() as u64, total_num_leafs);
+
+//     Ok(leaves)
+// }

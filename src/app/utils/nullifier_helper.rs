@@ -1,29 +1,16 @@
 use std::io::Error;
 
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
-use halo2_base::utils::{BigPrimeField, ScalarField};
+use halo2_base::utils::{log2_ceil, BigPrimeField, ScalarField};
+use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
 use num_bigint::BigUint;
 use pse_poseidon::Poseidon;
+use serde::{Deserialize, Serialize};
 use voter::merkletree::native::MerkleTree;
 
-#[derive(Clone, Debug)]
-pub struct IndexedMerkleTreeLeaf<F: ScalarField> {
-    pub val: F,
-    pub next_val: F,
-    pub next_idx: F,
-}
-impl<F: ScalarField> IndexedMerkleTreeLeaf<F> {
-    pub fn new(val: F, next_val: F, next_idx: F) -> Self {
-        Self {
-            val,
-            next_val,
-            next_idx,
-        }
-    }
-}
 pub fn generate_default_leafs<F: BigPrimeField>(num_leaf: usize) -> Vec<IndexedMerkleTreeLeaf<F>> {
     //num_leaf should be power of 2
-    assert!(num_leaf != 0 && (num_leaf & (num_leaf - 1)) == 0);
+    // assert!(num_leaf != 0 && (num_leaf & (num_leaf - 1)) == 0);
     (0..num_leaf)
         .map(|_| IndexedMerkleTreeLeaf::<F> {
             val: F::from(0u64),
@@ -97,18 +84,18 @@ pub fn generate_nullifier_leaf_proof<F: BigPrimeField>(
 
 // Functions to handle nullifier
 
-fn nearest_power_of_two(num: u64) -> u64 {
+pub fn nearest_power_of_two(num: u64) -> u64 {
     let mut power = 1;
-    while power <= num {
+    while power < num {
         power <<= 1;
     }
     power
 }
 
-pub fn generate_nullifier_root(size: u64) -> Result<BigUint, Error> {
+pub fn generate_nullifier_root(size: u64) -> Result<(BigUint, Vec<IndexedMerkleTreeLeaf<Fr>>), Error> {
     let power_of_two = nearest_power_of_two(size);
     let leaves = generate_default_leafs::<Fr>(power_of_two as usize);
     let nullifier_tree_preimages = leaves.clone();
     let nullifier_root = generate_merkle_root_of_nullifier(nullifier_tree_preimages)?;
-    Ok(BigUint::from_bytes_le(nullifier_root.to_bytes().as_slice()))
+    Ok((BigUint::from_bytes_le(nullifier_root.to_bytes().as_slice()), leaves))
 }
