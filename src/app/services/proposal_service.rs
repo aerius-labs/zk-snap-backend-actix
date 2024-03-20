@@ -111,6 +111,17 @@ pub async fn get_merkle_proof(
     Ok(proof)
 }
 
+pub async fn get_proposal_by_id(
+    db: web::Data<Repository<Proposal>>,
+    id: &str,
+) -> Result<Proposal, Error> {
+    let proposal = db.find_by_id(id).await.unwrap();
+    match proposal {
+        Some(proposal) => Ok(proposal),
+        None => Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    }
+}
+
 async fn schedule_event(
     proposal_id: &str,
     db: web::Data<Repository<Proposal>>,
