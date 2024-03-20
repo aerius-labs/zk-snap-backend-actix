@@ -26,3 +26,4 @@ num-bigint = { version = "0.4.4", features = ["serde"] }
 num-traits = "0.2.18"
 pse-poseidon = { git = "https://github.com/aerius-labs/pse-poseidon.git", branch = "feat/stateless-hash" }
 aggregator = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+indexed-merkle-tree-halo2 = { git = "https://github.com/aerius-labs/indexed-merkle-tree-halo2.git" , branch = "feat/aggr-indexed" }
