@@ -13,21 +13,18 @@ use aggregator::{
 use halo2_base::{
     gates::circuit::{builder::BaseCircuitBuilder, BaseCircuitParams},
     halo2_proofs::{
-        arithmetic::Field,
-        halo2curves::{
+        arithmetic::Field, dev::MockProver, halo2curves::{
             bn256::{Bn256, Fr, G1Affine},
             ff::PrimeField,
             secp256k1::{Fq, Secp256k1Affine},
-        },
-        plonk::ProvingKey,
-        poly::kzg::commitment::ParamsKZG,
+        }, plonk::ProvingKey, poly::kzg::commitment::ParamsKZG
     },
     utils::{biguint_to_fe, fe_to_biguint, fs::gen_srs},
 };
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::{rngs::OsRng, thread_rng};
-use voter::{EncryptionPublicKey, VoterCircuit, VoterCircuitInput};
+use voter::{EncryptionPublicKey, VoterCircuit, VoterCircuitInput, CircuitExt};
 
 use crate::app::utils::{compressed_to_affine, limbs_to_biguint};
 
@@ -113,28 +110,32 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
 
     let incoming_vote: Vec<BigUint> = (0..5)
         .map(|i| {
-            let start = (i + 1) * 5;
-            let end = start + 5;
+            let start = (i + 1) * 4;
+            let end = start + 4;
+            println!("start={}, end={}", start, end);
             limbs_to_biguint(voter.instances[0][start..end].to_vec())
         })
         .collect();
+    println!("voter instances: {:?}", voter.instances[0]);
+    println!("Incoming vote: {:?}", incoming_vote);
 
     let prev_vote: Vec<BigUint> = (0..5)
         .map(|i| {
-            let start = (i + 1) * 5;
-            let end = start + 5;
+            let start = 17 + 4*i;
+            let end = start + 4;
+            println!("start={}, end={}", start, end);
             limbs_to_biguint(previous.instances[0][start..end].to_vec())
         })
         .collect();
-    log::info!("nullifier compression");
+    println!("previous instances: {:?}", previous.instances[0]);
+    println!("Prev vote: {:?}", prev_vote);
     let nullifier = compressed_to_affine::<Fr>([
+        voter.instances[0][24],
         voter.instances[0][25],
         voter.instances[0][26],
         voter.instances[0][27],
-        voter.instances[0][28],
     ])
     .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
-    log::info!("nullifier: {:?}", nullifier);
 
     let state_transition_input = StateTransitionInput {
         pk_enc,
@@ -221,6 +222,10 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
         input.num_round as usize,
         config,
     );
+
+    println!("Running mock prover");
+    MockProver::run(22, &circuit, circuit.instances()).unwrap().verify().unwrap();
+    println!("Mock prover finished");
 
     Ok(gen_snark(&params, &recursion_pk, circuit))
 }

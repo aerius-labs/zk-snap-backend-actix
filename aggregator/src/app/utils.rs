@@ -30,12 +30,10 @@ pub(crate) fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
 }
 
 pub(crate) fn paillier_enc(pk_enc: EncryptionPublicKey, m: &BigUint, r: &BigUint) -> BigUint {
-    let n = pk_enc.n.clone();
-    let g = &pk_enc.g;
-    let c = (g.modpow(m, &(n.clone() * &n.clone()))
-        * r.modpow(&n.clone(), &(n.clone() * &n.clone())))
-        % (n.clone() * n.clone());
-    c
+    let n2 = pk_enc.n.clone() * pk_enc.n.clone();
+    let gm = pk_enc.g.modpow(m, &n2);
+    let rn = r.modpow(&pk_enc.n, &n2);
+    (gm * rn) % n2
 }
 
 pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
@@ -48,6 +46,7 @@ pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
             )
         })
         .collect::<Vec<BigUint>>();
+    println!("init_vote: {:?}", init_vote);
     let init_vote = init_vote
         .iter()
         .flat_map(|x| biguint_to_88_bit_limbs(x.clone()))
@@ -56,8 +55,9 @@ pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
 }
 
 pub(crate) fn compressed_to_affine<F: BigPrimeField>(
-    compressed: [F; 4],
+    compressed: [F; 4]
 ) -> Result<Secp256k1Affine, Error> {
+    log::info!("Compressed: {:?}", compressed);
     let compressed_y_is_odd = compressed[0] != F::from(2u64);
 
     let mut x_bytes = Vec::with_capacity(32);
@@ -66,23 +66,36 @@ pub(crate) fn compressed_to_affine<F: BigPrimeField>(
         let chunk_len = if i == 3 { 10 } else { 11 };
         x_bytes.extend_from_slice(&byte_chunk[..chunk_len]);
     }
-    let x_bytes: [u8; 32] = x_bytes[..32].try_into().expect("Slice length must be 32");
-    let x = fe_to_biguint::<Fp>(&Fp::from_bytes(&x_bytes).unwrap());
+    let x_bytes: [u8; 32] = match x_bytes[..32].try_into() {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            return Err(Error::new(ErrorKind::InvalidData, "Invalid point x_bytes"));
+        }
+    };
+    let x = Fp::from_bytes(&x_bytes).unwrap_or(Fp::zero());
+    if x == Fp::zero() {
+        return Err(Error::new(ErrorKind::InvalidData, "Invalid point x"));
+    }
+    let x = fe_to_biguint::<Fp>(&x);
 
     let modulus = BigUint::from_str_radix(&Fp::MODULUS.to_string()[2..], 16).unwrap();
     let y2 = (x.modpow(&BigUint::from(3u64), &modulus) + BigUint::from(7u64)) % &modulus;
     let mut y = y2.modpow(
         &((modulus.clone() + BigUint::from(1u64)) / BigUint::from(4u64)),
-        &modulus,
+        &modulus
     );
     if y.bit(0) != compressed_y_is_odd {
         y = modulus - y;
     }
 
-    let pt = Secp256k1Affine::from_xy(biguint_to_fe::<Fp>(&x), biguint_to_fe::<Fp>(&y)).unwrap();
-
-    match format!("{:?}", pt.is_on_curve()).as_str() {
-        "Choice(1)" => Ok(pt),
-        _ => Err(Error::new(ErrorKind::InvalidData, "Invalid point")),
+    let pt = Secp256k1Affine::from_xy(biguint_to_fe::<Fp>(&x), biguint_to_fe::<Fp>(&y)).unwrap_or(
+        Secp256k1Affine::generator()
+    );
+    log::info!("Affine: {:?}", pt);
+    if pt == Secp256k1Affine::generator() {
+        return Err(Error::new(ErrorKind::InvalidData, "Invalid point"));
     }
+    
+    Ok(pt)
 }
+
