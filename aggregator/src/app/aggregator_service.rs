@@ -133,7 +133,7 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
         voter.instances[0][27],
         voter.instances[0][28],
     ])
-    .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid nullifier"))?;
+    .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
 
     let state_transition_input = StateTransitionInput {
         pk_enc,
@@ -234,6 +234,7 @@ pub async fn generate_voter_proof(input: VoterDto) -> Result<Snark, Error> {
         lookup_bits: Some(14),
         num_instance_columns: 1,
     };
+    //TODO: only read params
     let params = gen_srs(k as u32);
 
     let build_dir = env::current_dir()
@@ -241,6 +242,7 @@ pub async fn generate_voter_proof(input: VoterDto) -> Result<Snark, Error> {
         .join("aggregator")
         .join("build");
     fs::create_dir_all(&build_dir).unwrap();
+    // TODO: Remove unwrap
     let file = fs::read(build_dir.join("voter_pk.bin")).unwrap();
     let pk_reader = &mut BufReader::new(file.as_slice());
     let pk = ProvingKey::<G1Affine>::read::<BufReader<&[u8]>, BaseCircuitBuilder<Fr>>(

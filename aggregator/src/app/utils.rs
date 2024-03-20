@@ -1,8 +1,18 @@
+use std::io::{Error, ErrorKind};
+
 use halo2_base::{
-    halo2_proofs::halo2curves::{bn256::Fr, secp256k1::Secp256k1Affine, serde::SerdeObject},
-    utils::{fe_to_biguint, BigPrimeField, ScalarField},
+    halo2_proofs::{
+        arithmetic::CurveAffine,
+        halo2curves::{
+            bn256::Fr,
+            ff::PrimeField,
+            secp256k1::{Fp, Secp256k1Affine},
+        },
+    },
+    utils::{biguint_to_fe, fe_to_biguint, BigPrimeField, ScalarField},
 };
 use num_bigint::{BigUint, RandBigInt};
+use num_traits::Num;
 use rand::thread_rng;
 use voter::EncryptionPublicKey;
 
@@ -47,17 +57,32 @@ pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
 
 pub(crate) fn compressed_to_affine<F: BigPrimeField>(
     compressed: [F; 4],
-) -> Option<Secp256k1Affine> {
-    let mut bytes = Vec::with_capacity(33);
-
+) -> Result<Secp256k1Affine, Error> {
     let compressed_y_is_odd = compressed[0] != F::from(2u64);
-    bytes.push(if compressed_y_is_odd { 0x03 } else { 0x02 });
 
+    let mut x_bytes = Vec::with_capacity(32);
     for (i, chunk) in compressed.iter().enumerate().skip(1) {
         let byte_chunk = chunk.to_bytes_le();
         let chunk_len = if i == 3 { 10 } else { 11 };
-        bytes.extend_from_slice(&byte_chunk[..chunk_len]);
+        x_bytes.extend_from_slice(&byte_chunk[..chunk_len]);
+    }
+    let x_bytes: [u8; 32] = x_bytes[..32].try_into().expect("Slice length must be 32");
+    let x = fe_to_biguint::<Fp>(&Fp::from_bytes(&x_bytes).unwrap());
+
+    let modulus = BigUint::from_str_radix(&Fp::MODULUS.to_string()[2..], 16).unwrap();
+    let y2 = (x.modpow(&BigUint::from(3u64), &modulus) + BigUint::from(7u64)) % &modulus;
+    let mut y = y2.modpow(
+        &((modulus.clone() + BigUint::from(1u64)) / BigUint::from(4u64)),
+        &modulus,
+    );
+    if y.bit(0) != compressed_y_is_odd {
+        y = modulus - y;
     }
 
-    Secp256k1Affine::from_raw_bytes(&bytes)
+    let pt = Secp256k1Affine::from_xy(biguint_to_fe::<Fp>(&x), biguint_to_fe::<Fp>(&y)).unwrap();
+
+    match format!("{:?}", pt.is_on_curve()).as_str() {
+        "Choice(1)" => Ok(pt),
+        _ => Err(Error::new(ErrorKind::InvalidData, "Invalid point")),
+    }
 }

@@ -5,5 +5,6 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
     cfg.service((
         aggregator_controller::generate_base_proof,
         aggregator_controller::generate_recursive_proof,
+        aggregator_controller::generate_vote_proof,
     ))
 }
