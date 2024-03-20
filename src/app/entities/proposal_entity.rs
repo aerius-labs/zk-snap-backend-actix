@@ -1,6 +1,9 @@
 use aggregator::wrapper::common::Snark;
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
+use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
+
 
 #[derive(Serialize, Deserialize)]
 pub struct Proposal {
@@ -40,8 +43,14 @@ pub struct Proposal {
     #[serde(rename = "result")]
     pub result: Vec<String>,
 
-    #[serde(rename = "SnarkProof")]
-    pub snark_proof: Snark,
+    #[serde(rename = "currentAggProof")]
+    pub curr_agg_proof: Snark,
+
+    #[serde(rename = "PreviousNullifierRoot")]
+    pub curr_nullifier_root: Fr,
+
+    #[serde(rename = "PreviousNullifierLeaves")]
+    pub curr_nullifier_preimages: Vec<IndexedMerkleTreeLeaf<Fr>>,
     // #[serde(rename = "userProofQueue")]
     // pub user_proof_queue: Vec<Vote>,
 }
