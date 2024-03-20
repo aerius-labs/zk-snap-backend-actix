@@ -126,7 +126,7 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
             limbs_to_biguint(previous.instances[0][start..end].to_vec())
         })
         .collect();
-
+    log::info!("nullifier compression");
     let nullifier = compressed_to_affine::<Fr>([
         voter.instances[0][25],
         voter.instances[0][26],
@@ -134,6 +134,7 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
         voter.instances[0][28],
     ])
     .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
+    log::info!("nullifier: {:?}", nullifier);
 
     let state_transition_input = StateTransitionInput {
         pk_enc,
