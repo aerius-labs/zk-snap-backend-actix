@@ -30,7 +30,15 @@ where
                 return Err(RepositoryError::InternalError(e.to_string()));
             }
         };
-        Ok(result.inserted_id.as_object_id().unwrap().to_string())
+        let id = match result.inserted_id.as_object_id() {
+            Some(id) => id,
+            None => {
+                return Err(RepositoryError::InternalError(
+                    "Error getting inserted id".to_string(),
+                ));
+            }
+        };
+        Ok(id.to_string())
     }
 
     pub async fn find_all(&self) -> RepositoryResult<Vec<T>> {
@@ -51,7 +59,12 @@ where
     }
 
     pub async fn find_by_id(&self, id: &str) -> RepositoryResult<Option<T>> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id = match ObjectId::parse_str(id) {
+            Ok(obj_id) => obj_id,
+            Err(e) => {
+                return Err(RepositoryError::InternalError(e.to_string()));
+            }
+        };
         let filter = doc! { "_id": obj_id };
         let result = match self.collection.find_one(filter, None).await {
             Ok(result) => result,
@@ -62,9 +75,25 @@ where
         Ok(result)
     }
 
+    pub async fn if_field_exists(&self, field: &str, value: &str) -> RepositoryResult<bool> {
+        let filter = doc! { field: value };
+        let result = match self.collection.find_one(filter, None).await {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(RepositoryError::InternalError(e.to_string()));
+            }
+        };
+        Ok(result.is_some())
+    }
+
     #[allow(clippy::ok_expect)]
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id = match ObjectId::parse_str(id) {
+            Ok(obj_id) => obj_id,
+            Err(e) => {
+                return Err(RepositoryError::InternalError(e.to_string()));
+            }
+        };
         let filter = doc! { "_id": obj_id };
         let result = self
             .collection
@@ -81,7 +110,12 @@ where
 
     #[allow(clippy::ok_expect)]
     pub async fn delete(&self, id: &str) -> RepositoryResult<()> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id = match ObjectId::parse_str(id) {
+            Ok(obj_id) => obj_id,
+            Err(e) => {
+                return Err(RepositoryError::InternalError(e.to_string()));
+            }
+        };
         let filter = doc! { "_id": obj_id };
         let result = self
             .collection
