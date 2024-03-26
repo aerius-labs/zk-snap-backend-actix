@@ -11,6 +11,9 @@ pub struct Proposal {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
 
+    #[serde(rename = "proposalId")]
+    pub proposal_id: u16,
+
     #[serde(rename = "creator")]
     pub creator: String,
 

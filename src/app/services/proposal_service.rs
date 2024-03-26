@@ -25,9 +25,8 @@ use crate::app::{
     repository::generic_repository::Repository,
     utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
-use actix_web::web;
-use num_bigint::BigUint;
-use num_traits::Num;
+use rand::{Rng, thread_rng};
+use actix_web::web::{self, Json};
 
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
@@ -58,11 +57,14 @@ pub async fn create_proposal(
     // this converts the public key to a big int
     let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
 
+    //get random id in u16
+    let proposal_id = generate_unique_random_id(db.clone()).await?;
+
     // this creates the base proof dto
     let aggregator_request_dto = AggregatorBaseDto {
         pk_enc: public_key,
         membership_root: dao.members_root,
-        proposal_id: 0 as u16,
+        proposal_id,
         init_nullifier_root: nullifier_root.clone(),
     };
 
@@ -72,6 +74,7 @@ pub async fn create_proposal(
     let proposal = Proposal {
         creator: proposal.creator,
         title: proposal.title,
+        proposal_id,
         description: proposal.description,
         dao_id: proposal.dao_id,
         start_time: proposal.start_time,
@@ -92,6 +95,23 @@ pub async fn create_proposal(
     match db.create(proposal).await {
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
+}
+
+// Function to generate a unique random ID.
+async fn generate_unique_random_id(db: web::Data<Repository<Proposal>>) -> Result<u16, Error> {
+    let mut rng = thread_rng();
+    
+    loop {
+        let random_id = rng.gen::<u16>();
+        let id_exists = match db.if_field_exists("proposalId", &random_id.to_string()).await {
+            Ok(result) => result,
+            Err(_) => false,
+        };
+        if !id_exists {
+            return Ok(random_id);
+        }
+        // If ID exists, the loop continues and generates a new ID.
     }
 }
 
@@ -186,6 +206,7 @@ async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<Snark,
     let url = env::var("AGGREGATOR_URL_REC").expect("URL is not set");
     let client = Client::new();
     println!("{:?}", dto.num_round);
+    
     let response = match client.post(url).json(&dto).send().await {
         Ok(response) => response,
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
