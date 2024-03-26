@@ -12,7 +12,7 @@ use tokio::time::{sleep_until, Instant};
 use voter::merkletree::native::MerkleTree;
 
 use super::dao_service;
-use crate::app::dtos::aggregator_request_dto::{self, AggregatorBaseDto, AggregatorRecursiveDto};
+use crate::app::dtos::aggregator_request_dto::{AggregatorBaseDto, AggregatorRecursiveDto};
 use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
 use crate::app::utils::index_merkle_tree_helper::update_nullifier_tree;
@@ -26,7 +26,7 @@ use crate::app::{
     utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
 use rand::{Rng, thread_rng};
-use actix_web::web::{self, Json};
+use actix_web::web;
 
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,

@@ -1,10 +1,7 @@
-use bson::de;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::BigPrimeField};
 use hex::decode;
 use pse_poseidon::Poseidon;
 use std::io::Error;
-
-use crate::app::utils::nullifier_helper::nearest_power_of_two;
 
 fn spec_bytes_to_f<F: BigPrimeField>(bytes: &[u8; 32]) -> Result<[F; 3], Error> {
     if bytes.len() != 32 {

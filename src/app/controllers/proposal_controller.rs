@@ -3,7 +3,7 @@ use aggregator::wrapper::common::Snark;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::biguint_to_fe};
 use serde_json::json;
 use validator::Validate;
-use std::{env, io::Error, mem};
+use std::{env, io::Error};
 
 use crate::app::{
     dtos::{dummy_vote_request::VoterDto, proposal_dto::{self, CreateProposalDto}},

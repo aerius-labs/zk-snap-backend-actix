@@ -1,5 +1,5 @@
 use aggregator::state_transition::IndexedMerkleTreeInput;
-use halo2_base::utils::{ BigPrimeField, ScalarField };
+use halo2_base::utils::BigPrimeField;
 use pse_poseidon::Poseidon;
 use voter::merkletree::native::MerkleTree;
 use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
@@ -84,7 +84,7 @@ pub fn update_nullifier_tree<F: BigPrimeField>(
 ) -> (Vec<IndexedMerkleTreeLeaf<F>>, IndexedMerkleTreeInput<F>) {
     let mut nullifier_tree_preimages = nullifier_old_preimages.clone();
     let mut hasher=Poseidon::<F, 3, 2>::new(8, 57);
-    let mut old_tree=MerkleTree::new(&mut hasher, hash_nullifier_pre_images(nullifier_old_preimages.clone())).unwrap();
+    let old_tree=MerkleTree::new(&mut hasher, hash_nullifier_pre_images(nullifier_old_preimages.clone())).unwrap();
     let old_root=old_tree.get_root();
 
     let mut low_leaf_idx = 0;

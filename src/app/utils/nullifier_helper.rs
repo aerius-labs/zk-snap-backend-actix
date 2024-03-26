@@ -1,11 +1,10 @@
 use std::io::Error;
 
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
-use halo2_base::utils::{log2_ceil, BigPrimeField, ScalarField};
+use halo2_base::utils::BigPrimeField;
 use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
 use num_bigint::BigUint;
 use pse_poseidon::Poseidon;
-use serde::{Deserialize, Serialize};
 use voter::merkletree::native::MerkleTree;
 
 pub fn generate_default_leafs<F: BigPrimeField>(num_leaf: usize) -> Vec<IndexedMerkleTreeLeaf<F>> {
