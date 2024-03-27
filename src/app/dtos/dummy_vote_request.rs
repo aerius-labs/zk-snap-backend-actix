@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use crate::app::utils::parse_string_pub_key::EncryptionPublicKey;
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct VoterDto {

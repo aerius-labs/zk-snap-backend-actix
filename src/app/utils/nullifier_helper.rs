@@ -91,10 +91,15 @@ pub fn nearest_power_of_two(num: u64) -> u64 {
     power
 }
 
-pub fn generate_nullifier_root(size: u64) -> Result<(BigUint, Vec<IndexedMerkleTreeLeaf<Fr>>), Error> {
+pub fn generate_nullifier_root(
+    size: u64,
+) -> Result<(BigUint, Vec<IndexedMerkleTreeLeaf<Fr>>), Error> {
     let power_of_two = nearest_power_of_two(size);
     let leaves = generate_default_leafs::<Fr>(power_of_two as usize);
     let nullifier_tree_preimages = leaves.clone();
     let nullifier_root = generate_merkle_root_of_nullifier(nullifier_tree_preimages)?;
-    Ok((BigUint::from_bytes_le(nullifier_root.to_bytes().as_slice()), leaves))
+    Ok((
+        BigUint::from_bytes_le(nullifier_root.to_bytes().as_slice()),
+        leaves,
+    ))
 }

@@ -2,14 +2,23 @@ use actix_web::{get, post, web, HttpResponse, Responder};
 use aggregator::wrapper::common::Snark;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::biguint_to_fe};
 use serde_json::json;
-use validator::Validate;
 use std::{env, io::Error};
+use validator::Validate;
 
 use crate::app::{
-    dtos::{dummy_vote_request::VoterDto, proposal_dto::{self, CreateProposalDto}},
+    dtos::{
+        dummy_vote_request::VoterDto,
+        proposal_dto::{self, CreateProposalDto},
+    },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
-    services::{dao_service::get_dao_by_id, proposal_service::{create_proposal, get_merkle_proof, get_proposal_by_id, submit_vote_to_aggregator}}, utils::parse_string_pub_key::convert_to_public_key_big_int,
+    services::{
+        dao_service::get_dao_by_id,
+        proposal_service::{
+            create_proposal, get_merkle_proof, get_proposal_by_id, submit_vote_to_aggregator,
+        },
+    },
+    utils::parse_string_pub_key::convert_to_public_key_big_int,
 };
 
 #[post("proposal/")]
@@ -70,7 +79,14 @@ async fn vote_on_proposal(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let (proposal_id, voter_pub_key) = path.into_inner();
-    let user_proof = match create_vote_dto(proposal_db.clone(), doa_db.clone(), &proposal_id, &voter_pub_key).await {
+    let user_proof = match create_vote_dto(
+        proposal_db.clone(),
+        doa_db.clone(),
+        &proposal_id,
+        &voter_pub_key,
+    )
+    .await
+    {
         Ok(result) => result,
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
@@ -89,7 +105,7 @@ async fn vote_on_proposal(
             }));
         }
     };
-    
+
     match submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
         Ok(_) => {
             return HttpResponse::Ok().json(json!({
@@ -128,11 +144,12 @@ async fn create_vote_dto(
     let dao = get_dao_by_id(doa_db.clone(), &proposal.dao_id).await?;
 
     let merkle_root = biguint_to_fe::<Fr>(&dao.members_root);
-    let membership_proof_and_helper: proposal_dto::MerkleProofVoter = get_merkle_proof(doa_db.clone(), &proposal.dao_id, voter_pub_key).await?;
+    let membership_proof_and_helper: proposal_dto::MerkleProofVoter =
+        get_merkle_proof(doa_db.clone(), &proposal.dao_id, voter_pub_key).await?;
     let membership_proof = membership_proof_and_helper.proof;
     let helper = membership_proof_and_helper.helper;
     let pk_enc = convert_to_public_key_big_int(&proposal.encrypted_keys.pub_key)?;
-    
+
     let vote_dto = VoterDto {
         proposal_id: 0 as u16,
         pk_enc,
