@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use dotenv::dotenv;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use halo2_base::utils::{biguint_to_fe, ScalarField};
+use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
 use pse_poseidon::Poseidon;
 use reqwest::Client;
@@ -12,7 +13,9 @@ use tokio::time::{sleep_until, Instant};
 use voter::merkletree::native::MerkleTree;
 
 use super::dao_service;
-use crate::app::dtos::aggregator_request_dto::{AggregatorBaseDto, AggregatorRecursiveDto};
+use crate::app::dtos::aggregator_request_dto::{
+    AggregatorBaseDto, AggregatorRecursiveDto, MessageType,
+};
 use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
 use crate::app::utils::index_merkle_tree_helper::update_nullifier_tree;
@@ -25,8 +28,8 @@ use crate::app::{
     repository::generic_repository::Repository,
     utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
-use rand::{Rng, thread_rng};
 use actix_web::web;
+use rand::{thread_rng, Rng};
 
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
@@ -68,8 +71,12 @@ pub async fn create_proposal(
         init_nullifier_root: nullifier_root.clone(),
     };
 
+    println!("{:?}", aggregator_request_dto);
     // this creates the base proof
-    let base_proof = create_base_proof(aggregator_request_dto).await?;
+    match create_base_proof(aggregator_request_dto).await {
+        Ok(_) => (),
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
 
     let proposal = Proposal {
         creator: proposal.creator,
@@ -83,14 +90,11 @@ pub async fn create_proposal(
         voting_options: proposal.voting_options,
         status: "Pending".to_string(),
         result: vec![],
-        curr_agg_proof: base_proof,
+        curr_agg_proof: None,
         curr_nullifier_root: biguint_to_fe(&nullifier_root),
         curr_nullifier_preimages: nullifier_preimages,
         id: Some(ObjectId::new()),
     };
-    // this schedules the event to handle the end of the proposal
-    // let proposal_id = proposal.id.unwrap().to_string();
-    // schedule_event(&proposal_id, db.clone(), proposal.end_time).await;
 
     match db.create(proposal).await {
         Ok(result) => Ok(result),
@@ -101,10 +105,13 @@ pub async fn create_proposal(
 // Function to generate a unique random ID.
 async fn generate_unique_random_id(db: web::Data<Repository<Proposal>>) -> Result<u16, Error> {
     let mut rng = thread_rng();
-    
+
     loop {
         let random_id = rng.gen::<u16>();
-        let id_exists = match db.if_field_exists("proposalId", &random_id.to_string()).await {
+        let id_exists = match db
+            .if_field_exists("proposalId", &random_id.to_string())
+            .await
+        {
             Ok(result) => result,
             Err(_) => false,
         };
@@ -161,7 +168,15 @@ pub async fn submit_vote_to_aggregator(
         None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
     };
 
-    let previous_snark = proposal.curr_agg_proof.clone();
+    let previous_snark = match proposal.curr_agg_proof.clone() {
+        Some(snark) => snark,
+        None => {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "Invalid previous snark proof",
+            ))
+        }
+    };
     let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
     hasher.update(voter_snark.instances[0][24..28].as_ref());
     let nullifier = hasher.squeeze_and_reset();
@@ -174,39 +189,41 @@ pub async fn submit_vote_to_aggregator(
             "Invalid previous snark proof",
         ));
     } else {
-        num_round = previous_snark.instances[0].last().unwrap().clone().to_u64_limbs(1, 63)[0];
+        num_round = previous_snark.instances[0]
+            .last()
+            .unwrap()
+            .clone()
+            .to_u64_limbs(1, 63)[0];
     }
-    let nullifier_inputs = update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round+ 1);
+    let nullifier_inputs =
+        update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
     let recurr_dto = AggregatorRecursiveDto {
-       num_round:num_round as u16,
-       voter: voter_snark.clone(),
-       previous: previous_snark,
-       nullifier_tree_input: nullifier_inputs.1,
+        num_round: num_round as u16,
+        voter: voter_snark.clone(),
+        previous: previous_snark,
+        nullifier_tree_input: nullifier_inputs.1,
     };
 
     let proof = call_submit_to_aggregator(recurr_dto).await?;
 
-    proposal.curr_agg_proof = proof.clone();
+    proposal.curr_agg_proof = Some(proof.clone());
     proposal.curr_nullifier_preimages = nullifier_inputs.0;
     proposal.curr_nullifier_root = proof.instances[0][37];
 
-
-    
     match proposal_db.update(proposal_id, proposal).await {
         Ok(_) => {
             println!("Vote submitted to aggregator");
             Ok(())
-        },
+        }
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     }
-
 }
 
 async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<Snark, Error> {
     let url = env::var("AGGREGATOR_URL_REC").expect("URL is not set");
     let client = Client::new();
     println!("{:?}", dto.num_round);
-    
+
     let response = match client.post(url).json(&dto).send().await {
         Ok(response) => response,
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
@@ -223,10 +240,7 @@ async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<Snark,
             Ok(text) => text,
             Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
         };
-        Err(Error::new(
-            ErrorKind::Other,
-            res_text,
-        ))
+        Err(Error::new(ErrorKind::Other, res_text))
     }
 }
 async fn schedule_event(
@@ -306,28 +320,38 @@ async fn decrypt_keys(pvt: String) -> Result<String, Error> {
     }
 }
 
-async fn create_base_proof(aggregator_request_dto: AggregatorBaseDto) -> Result<Snark, Error> {
-    let url = env::var("AGGREGATOR_URL").expect("URL is not set");
-    let client = Client::new();
+async fn create_base_proof(
+    aggregator_request_dto: AggregatorBaseDto,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to rabbit MQ
+    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
 
-    // Send a POST request
-    let response = match client.post(url).json(&aggregator_request_dto).send().await {
-        Ok(response) => response,
-        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
-    };
+    // Declare the queue
 
-    if response.status().is_success() {
-        let json: Snark = match response.json().await {
-            Ok(json) => json,
-            Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
-        };
-        Ok(json)
-    } else {
-        Err(Error::new(
-            std::io::ErrorKind::Other,
-            "Failed to create base proof",
-        ))
-    }
+    let queue_name = "aggregator_queue";
+    channel
+        .queue_declare(
+            &queue_name,
+            QueueDeclareOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
+
+    let msg = MessageType::Base(aggregator_request_dto);
+    channel
+        .basic_publish(
+            "",
+            &queue_name,
+            BasicPublishOptions::default(),
+            &serde_json::to_vec(&msg)?,
+            BasicProperties::default(),
+        )
+        .await?;
+
+    println!("base proof sent to {:?}", &queue_name);
+    Ok(())
 }
 
 async fn generate_encrypted_keys(end_time: DateTime<Utc>) -> Result<EncryptedKeys, Error> {

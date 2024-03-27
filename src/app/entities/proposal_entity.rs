@@ -4,7 +4,6 @@ use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize)]
 pub struct Proposal {
     #[serde(rename = "_id")]
@@ -47,7 +46,7 @@ pub struct Proposal {
     pub result: Vec<String>,
 
     #[serde(rename = "currentAggProof")]
-    pub curr_agg_proof: Snark,
+    pub curr_agg_proof: Option<Snark>,
 
     #[serde(rename = "PreviousNullifierRoot")]
     pub curr_nullifier_root: Fr,
