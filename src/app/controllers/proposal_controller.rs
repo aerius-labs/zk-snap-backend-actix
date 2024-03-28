@@ -15,7 +15,7 @@ use crate::app::{
     services::{
         dao_service::get_dao_by_id,
         proposal_service::{
-            create_proposal, get_merkle_proof, get_proposal_by_id, submit_vote_to_aggregator,
+            create_proposal, get_merkle_proof, get_proposal_by_id, submit_proof_to_proposal, submit_vote_to_aggregator
         },
     },
     utils::parse_string_pub_key::convert_to_public_key_big_int,
@@ -131,6 +131,37 @@ async fn get_results(
         "message": "Getting results",
         "proposal_id": proposal_id
     }));
+}
+
+#[post("proposal/agg/")]
+async fn submit_aggregated_snark(
+    proposal_db: web::Data<Repository<Proposal>>,
+    snark: web::Json<Snark>,
+) -> impl Responder {
+    let snark = snark.into_inner();
+    let len = snark.instances[0].len();
+    let proposal_id = u64_from_fr(snark.instances[0][len-2]);
+
+    match submit_proof_to_proposal(proposal_db, proposal_id, snark).await {
+        Ok(_) => {
+            return HttpResponse::Ok().json(json!({
+                "message": "Submitting proof to proposal",
+            }));
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to submit proof to proposal",
+                "Error": e.to_string()
+            }));
+        }
+    }
+}   
+
+// function to convert proposal_if from Fr to u64
+fn u64_from_fr(fr: Fr)->u64{
+    let mut bytes=Vec::new();
+    bytes.extend_from_slice(&fr.to_bytes()[0..8]);
+    u64::from_be_bytes(bytes.try_into().unwrap())
 }
 
 // TODO: Delete this function once after wasm is done

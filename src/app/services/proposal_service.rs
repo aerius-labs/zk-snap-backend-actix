@@ -122,6 +122,32 @@ async fn generate_unique_random_id(db: web::Data<Repository<Proposal>>) -> Resul
     }
 }
 
+// Function to submit Snark proof from aggregator to the proposal.
+pub async fn submit_proof_to_proposal(
+    db: web::Data<Repository<Proposal>>,
+    proposal_id: u64,
+    snark: Snark,
+) -> Result<(), Error> {
+    let proposal = match db.find_by_field("proposalId", &proposal_id.to_string()).await {
+        Ok(result) => result,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
+
+    let mut proposal = match proposal {
+        Some(proposal) => proposal,
+        None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    };
+
+    proposal.curr_agg_proof = Some(snark);
+    let id = proposal.id.unwrap().to_string();
+    match db.update(&id, proposal).await {
+        Ok(_) => {
+            println!("Proof submitted to proposal");
+            Ok(())
+        },
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
+}
 pub async fn get_merkle_proof(
     doa_db: web::Data<Repository<Dao>>,
     dao_id: &str,

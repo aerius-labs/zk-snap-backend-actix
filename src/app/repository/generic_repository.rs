@@ -86,6 +86,17 @@ where
         Ok(result.is_some())
     }
 
+    pub async fn find_by_field(&self, field: &str, value: &str) -> RepositoryResult<Option<T>> {
+        let filter = doc! { field: value };
+        let result = match self.collection.find_one(filter, None).await {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(RepositoryError::InternalError(e.to_string()));
+            }
+        };
+        Ok(result)
+    }
+
     #[allow(clippy::ok_expect)]
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
         let obj_id = match ObjectId::parse_str(id) {
