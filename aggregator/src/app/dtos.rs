@@ -20,6 +20,12 @@ pub struct AggregatorRecursiveDto {
     pub nullifier_tree_input: IndexedMerkleTreeInput<Fr>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub enum MessageType {
+    Base(AggregatorBaseDto),
+    Recursive(AggregatorRecursiveDto),
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VoterDto {
     // Backend
