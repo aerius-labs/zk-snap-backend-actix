@@ -46,7 +46,7 @@ pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
             )
         })
         .collect::<Vec<BigUint>>();
-    println!("init_vote: {:?}", init_vote);
+    log::info!("init_vote: {:?}", init_vote);
     let init_vote = init_vote
         .iter()
         .flat_map(|x| biguint_to_88_bit_limbs(x.clone()))
@@ -55,7 +55,7 @@ pub(crate) fn get_init_vote(pk_enc: EncryptionPublicKey) -> Vec<Fr> {
 }
 
 pub(crate) fn compressed_to_affine<F: BigPrimeField>(
-    compressed: [F; 4]
+    compressed: [F; 4],
 ) -> Result<Secp256k1Affine, Error> {
     log::info!("Compressed: {:?}", compressed);
     let compressed_y_is_odd = compressed[0] != F::from(2u64);
@@ -82,20 +82,18 @@ pub(crate) fn compressed_to_affine<F: BigPrimeField>(
     let y2 = (x.modpow(&BigUint::from(3u64), &modulus) + BigUint::from(7u64)) % &modulus;
     let mut y = y2.modpow(
         &((modulus.clone() + BigUint::from(1u64)) / BigUint::from(4u64)),
-        &modulus
+        &modulus,
     );
     if y.bit(0) != compressed_y_is_odd {
         y = modulus - y;
     }
 
-    let pt = Secp256k1Affine::from_xy(biguint_to_fe::<Fp>(&x), biguint_to_fe::<Fp>(&y)).unwrap_or(
-        Secp256k1Affine::generator()
-    );
+    let pt = Secp256k1Affine::from_xy(biguint_to_fe::<Fp>(&x), biguint_to_fe::<Fp>(&y))
+        .unwrap_or(Secp256k1Affine::generator());
     log::info!("Affine: {:?}", pt);
     if pt == Secp256k1Affine::generator() {
         return Err(Error::new(ErrorKind::InvalidData, "Invalid point"));
     }
-    
+
     Ok(pt)
 }
-

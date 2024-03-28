@@ -112,23 +112,23 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
         .map(|i| {
             let start = (i + 1) * 4;
             let end = start + 4;
-            println!("start={}, end={}", start, end);
+            log::info!("start={}, end={}", start, end);
             limbs_to_biguint(voter.instances[0][start..end].to_vec())
         })
         .collect();
-    println!("voter instances: {:?}", voter.instances[0]);
-    println!("Incoming vote: {:?}", incoming_vote);
+    log::info!("voter instances: {:?}", voter.instances[0]);
+    log::info!("Incoming vote: {:?}", incoming_vote);
 
     let prev_vote: Vec<BigUint> = (0..5)
         .map(|i| {
             let start = 17 + 4*i;
             let end = start + 4;
-            println!("start={}, end={}", start, end);
+            log::info!("start={}, end={}", start, end);
             limbs_to_biguint(previous.instances[0][start..end].to_vec())
         })
         .collect();
-    println!("previous instances: {:?}", previous.instances[0]);
-    println!("Prev vote: {:?}", prev_vote);
+    log::info!("previous instances: {:?}", previous.instances[0]);
+    log::info!("Prev vote: {:?}", prev_vote);
     let nullifier = compressed_to_affine::<Fr>([
         voter.instances[0][24],
         voter.instances[0][25],
@@ -223,9 +223,9 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
         config,
     );
 
-    println!("Running mock prover");
+    log::info!("Running mock prover");
     MockProver::run(22, &circuit, circuit.instances()).unwrap().verify().unwrap();
-    println!("Mock prover finished");
+    log::info!("Mock prover finished");
 
     Ok(gen_snark(&params, &recursion_pk, circuit))
 }
