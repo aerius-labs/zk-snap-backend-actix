@@ -91,7 +91,7 @@ pub async fn create_proposal(
         status: "Pending".to_string(),
         result: vec![],
         curr_agg_proof: None,
-        curr_nullifier_root: biguint_to_fe(&nullifier_root),
+        curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
         curr_nullifier_preimages: nullifier_preimages,
         id: Some(ObjectId::new()),
     };
@@ -139,7 +139,27 @@ pub async fn submit_proof_to_proposal(
         None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
     };
 
+    let mut num_round: u64 = 0;
+
+    if snark.instances[0].last().is_none() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Invalid previous snark proof",
+        ));
+    } else {
+        num_round = snark.instances[0]
+            .last()
+            .unwrap()
+            .clone()
+            .to_u64_limbs(1, 63)[0];
+    }
+
+    if num_round > 0 {
+        proposal.curr_nullifier_root = Some(snark.instances[0][37]);
+    }
+
     proposal.curr_agg_proof = Some(snark);
+
     let id = proposal.id.unwrap().to_string();
     match db.update(&id, proposal).await {
         Ok(_) => {
@@ -231,11 +251,15 @@ pub async fn submit_vote_to_aggregator(
         nullifier_tree_input: nullifier_inputs.1,
     };
 
-    let proof = call_submit_to_aggregator(recurr_dto).await?;
+    match call_submit_to_aggregator(recurr_dto).await {
+        Ok(_) => println!("recursive proof submited"),
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
 
-    proposal.curr_agg_proof = Some(proof.clone());
+    proposal.curr_agg_proof = None;
     proposal.curr_nullifier_preimages = nullifier_inputs.0;
-    proposal.curr_nullifier_root = proof.instances[0][37];
+    // proposal.curr_nullifier_root = proof.instances[0][37];
+    proposal.curr_nullifier_root = None;
 
     match proposal_db.update(proposal_id, proposal).await {
         Ok(_) => {
@@ -246,29 +270,36 @@ pub async fn submit_vote_to_aggregator(
     }
 }
 
-async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<Snark, Error> {
-    let url = env::var("AGGREGATOR_URL_REC").expect("URL is not set");
-    let client = Client::new();
-    println!("{:?}", dto.num_round);
+async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to rabbit MQ
+    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
 
-    let response = match client.post(url).json(&dto).send().await {
-        Ok(response) => response,
-        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-    };
-    println!("{:?}", response.status());
-    if response.status().is_success() {
-        let json: Snark = match response.json().await {
-            Ok(json) => json,
-            Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-        };
-        Ok(json)
-    } else {
-        let res_text = match response.text().await {
-            Ok(text) => text,
-            Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-        };
-        Err(Error::new(ErrorKind::Other, res_text))
-    }
+    // Declare the queue
+
+    let queue_name = "aggregator_queue";
+    channel
+        .queue_declare(
+            &queue_name,
+            QueueDeclareOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
+
+    let msg = MessageType::Recursive(dto);
+    channel
+        .basic_publish(
+            "",
+            &queue_name,
+            BasicPublishOptions::default(),
+            &serde_json::to_vec(&msg)?,
+            BasicProperties::default(),
+        )
+        .await?;
+
+    println!("recursive proof sent to {:?}", &queue_name);
+    Ok(())
 }
 async fn schedule_event(
     proposal_id: &str,

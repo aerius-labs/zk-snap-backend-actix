@@ -49,7 +49,7 @@ pub struct Proposal {
     pub curr_agg_proof: Option<Snark>,
 
     #[serde(rename = "PreviousNullifierRoot")]
-    pub curr_nullifier_root: Fr,
+    pub curr_nullifier_root: Option<Fr>,
 
     #[serde(rename = "PreviousNullifierLeaves")]
     pub curr_nullifier_preimages: Vec<IndexedMerkleTreeLeaf<Fr>>,
