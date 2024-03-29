@@ -1,2 +1,2 @@
 [workspace]
-members = ["aggregator","zk-snap-backend"]
+members = ["aggregator","zk-snap-backend","voter"]

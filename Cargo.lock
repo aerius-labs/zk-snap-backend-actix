@@ -4203,6 +4203,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "voter-api"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "aggregator",
+ "dotenv",
+ "env_logger",
+ "futures",
+ "halo2-base",
+ "lapin",
+ "log",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "voter",
+ "voter-tests",
+]
+
+[[package]]
 name = "voter-tests"
 version = "0.1.0"
 source = "git+https://github.com/aerius-labs/zksnap-circuits-halo2.git?branch=feat/state_tran#037cd2d775df46dd6c41f4773a7142ff20b14dc7"
