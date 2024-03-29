@@ -1,0 +1,25 @@
+[package]
+name = "voter-api"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+actix-web = "4"
+num-bigint = { version = "0.4.4" }
+serde = { version = "1.0", features = ["derive"] }
+halo2-base = { git = "https://github.com/aerius-labs/halo2-lib.git", branch = "feat/secp256k1-hash2curve", default-features = false, features = ["halo2-axiom", "display"] }
+aggregator = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+voter = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+voter-tests = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+serde_json = "1.0.114"
+num-traits = "0.2.18"
+rand = "0.8.5"
+sha2 = "0.10.8"
+log = "0.4"
+env_logger = "0.9"
+lapin = { version = "2.3.1", default-features = false }
+futures = { version = "0.3.30", default-features = false }
+tokio = { version = "1", features = ["full"] }
+dotenv = "0.15"
+reqwest = { version = "0.11", features = ["json"] }
