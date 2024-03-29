@@ -125,10 +125,11 @@ async fn generate_unique_random_id(db: web::Data<Repository<Proposal>>) -> Resul
 // Function to submit Snark proof from aggregator to the proposal.
 pub async fn submit_proof_to_proposal(
     db: web::Data<Repository<Proposal>>,
-    proposal_id: u64,
+    proposal_id: u16,
     snark: Snark,
 ) -> Result<(), Error> {
-    let proposal = match db.find_by_field("proposalId", &proposal_id.to_string()).await {
+    let proposal_bson = bson::Bson::Int32(proposal_id as i32);
+    let proposal = match db.find_by_field("proposalId", proposal_bson).await {
         Ok(result) => result,
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     };
