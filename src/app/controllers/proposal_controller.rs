@@ -140,10 +140,13 @@ async fn submit_aggregated_snark(
 ) -> impl Responder {
     let snark = snark.into_inner();
     let len = snark.instances[0].len();
-    let proposal_id = u64_from_fr(snark.instances[0][len-2]);
+    let proposal_id = u16_from_fr(snark.instances[0][len-2]);
+    println!("Proposal ID: {:?}", snark.instances[0][len-2]);
+    println!("Proposal ID: {}", proposal_id);
 
     match submit_proof_to_proposal(proposal_db, proposal_id, snark).await {
         Ok(_) => {
+            println!("Proof submitted to proposal");
             return HttpResponse::Ok().json(json!({
                 "message": "Submitting proof to proposal",
             }));
@@ -155,13 +158,34 @@ async fn submit_aggregated_snark(
             }));
         }
     }
-}   
+}
+
+#[get("proposalagg/{proposal_id}")]
+async fn get_proposal(
+    proposal_db: web::Data<Repository<Proposal>>,
+    path: web::Path<u16>,
+) -> impl Responder {
+    let proposal_id = path.into_inner();
+    let proposal_id_bson = bson::Bson::Int32(proposal_id as i32); // Convert proposal_id to Bson type
+    match proposal_db.find_by_field("proposalId", proposal_id_bson).await { // Pass proposal_id_bson to find_by_field
+        Ok(result) => {
+            return HttpResponse::Ok().json(result);
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get proposal",
+                "Error": e.to_string()
+            }));
+        }
+    }
+}
+
 
 // function to convert proposal_if from Fr to u64
-fn u64_from_fr(fr: Fr)->u64{
+fn u16_from_fr(fr: Fr)->u16{
     let mut bytes=Vec::new();
-    bytes.extend_from_slice(&fr.to_bytes()[0..8]);
-    u64::from_be_bytes(bytes.try_into().unwrap())
+    bytes.extend_from_slice(&fr.to_bytes()[0..2]);
+    u16::from_le_bytes(bytes.try_into().unwrap())
 }
 
 // TODO: Delete this function once after wasm is done
