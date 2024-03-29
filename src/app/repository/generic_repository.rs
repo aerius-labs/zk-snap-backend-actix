@@ -1,4 +1,5 @@
 use crate::app::repository::traits::RepositoryError;
+use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId},
@@ -86,8 +87,9 @@ where
         Ok(result.is_some())
     }
 
-    pub async fn find_by_field(&self, field: &str, value: &str) -> RepositoryResult<Option<T>> {
+    pub async fn find_by_field(&self, field: &str, value: Bson) -> RepositoryResult<Option<T>> {
         let filter = doc! { field: value };
+        println!("Filter: {:?}", filter);
         let result = match self.collection.find_one(filter, None).await {
             Ok(result) => result,
             Err(e) => {
