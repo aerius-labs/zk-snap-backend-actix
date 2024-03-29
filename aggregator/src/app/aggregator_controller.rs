@@ -52,21 +52,3 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<(
     Ok(())
 }
 
-// ! Only for testing
-// TODO: Remove after testing
-#[post("vote/")]
-async fn generate_vote_proof(dto: web::Json<VoterDto>) -> impl Responder {
-    let input = dto.into_inner();
-
-    let result = match super::aggregator_service::generate_voter_proof(input).await {
-        Ok(result) => result,
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to generate vote proof",
-                "Error": e.to_string()
-            }));
-        }
-    };
-
-    HttpResponse::Ok().json(result)
-}
