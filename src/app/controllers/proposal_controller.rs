@@ -106,19 +106,41 @@ async fn vote_on_proposal(
         }
     };
 
-    match submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
-        Ok(_) => {
-            return HttpResponse::Ok().json(json!({
-                "message": "Voting on proposal",
+    // check if is_aggregator_available is true
+    // if true, submit vote to aggregator
+    // else, push user proof in a queue
+    let mut proposal = match get_proposal_by_id(proposal_db.clone(), &proposal_id).await{
+        Ok(result) => result,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get proposal",
+                "Error": e.to_string()
             }));
         }
-        Err(e) => {
+    };
+
+    // Submit vote to aggregator or push user proof in queue
+    println!("Is aggregator available: {:?}", proposal.is_aggregator_available);
+    if proposal.is_aggregator_available {
+        if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
             return HttpResponse::BadRequest().json(json!({
                 "message": "Failed to vote on proposal",
                 "Error": e.to_string()
             }));
         }
+    } else {
+        proposal.user_proof_queue.push(snark);
+        if let Err(e) = proposal_db.update(&proposal_id, proposal).await {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to update proposal",
+                "Error": e.to_string()
+            }));
+        }
     }
+
+    HttpResponse::Ok().json(json!({
+        "message": "Voting on proposal",
+    }))    
 }
 
 #[get("proposal/{proposal_id}")]
