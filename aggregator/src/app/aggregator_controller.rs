@@ -1,7 +1,5 @@
-use crate::app::dtos::{AggregatorBaseDto, AggregatorRecursiveDto, VoterDto};
-use actix_web::{post, web, HttpResponse, Responder};
+use crate::app::dtos::{AggregatorBaseDto, AggregatorRecursiveDto};
 use aggregator::wrapper::common::Snark;
-use serde_json::json;
 use std::io::{Error, ErrorKind};
 use std::env;
 
@@ -30,13 +28,12 @@ async fn submit_snark(proof: Snark) -> Result<(), Error> {
     match res {
         Ok(_) => {
             log::info!("Snark submitted successfully");
+            Ok(())
         }
         Err(e) => {
             return Err(Error::new(ErrorKind::Other, e.to_string()));
         }
     }
-
-    Ok(())
 }
 
 pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<(), Error>{
