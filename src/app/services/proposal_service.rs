@@ -91,8 +91,10 @@ pub async fn create_proposal(
         status: "Pending".to_string(),
         result: vec![],
         curr_agg_proof: None,
+        is_aggregator_available: false,
         curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
         curr_nullifier_preimages: nullifier_preimages,
+        user_proof_queue: vec![],
         id: Some(ObjectId::new()),
     };
 
@@ -160,13 +162,26 @@ pub async fn submit_proof_to_proposal(
 
     proposal.curr_agg_proof = Some(snark);
 
-    let id = proposal.id.unwrap().to_string();
-    match db.update(&id, proposal).await {
-        Ok(_) => {
-            println!("Proof submitted to proposal");
-            Ok(())
-        },
-        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+    // TODO: check the voter queue if empty than do nothing else consume one voter proof and set is_aggregator_available to false
+    let user_proof_queue = proposal.user_proof_queue.clone();
+    if user_proof_queue.is_empty() {
+        proposal.is_aggregator_available = true;
+        let id = proposal.id.unwrap().to_string();
+        match db.update(&id, proposal).await {
+            Ok(_) => {
+                println!("Proof submitted to proposal");
+                Ok(())
+            },
+            Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+        }
+    } else {
+        match submit_to_aggregator_from_queue(proposal, db.clone()).await {
+            Ok(_) => {
+                println!("Proof submitted to proposal from queue");
+                Ok(())
+            },
+            Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+        }
     }
 }
 pub async fn get_merkle_proof(
@@ -197,6 +212,63 @@ pub async fn get_proposal_by_id(
     match proposal {
         Some(proposal) => Ok(proposal),
         None => Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    }
+}
+
+async fn submit_to_aggregator_from_queue(
+    proposal: Proposal,
+    proposal_db: web::Data<Repository<Proposal>>,
+) -> Result<(), Error>{
+    let mut proposal = proposal;
+    let mut user_proof_queue = proposal.user_proof_queue.clone();
+    let voter_snark = user_proof_queue.remove(0);
+    proposal.user_proof_queue = user_proof_queue;
+
+    let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
+    hasher.update(voter_snark.instances[0][24..28].as_ref());
+    let nullifier = hasher.squeeze_and_reset();
+
+
+    let mut num_round: u64 = 0;
+
+    if proposal.curr_agg_proof.clone().unwrap().instances[0].last().is_none() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Invalid previous snark proof",
+        ));
+    } else {
+        num_round = proposal.curr_agg_proof.clone().unwrap().instances[0]
+            .last()
+            .unwrap()
+            .clone()
+            .to_u64_limbs(1, 63)[0];
+    }
+    let nullifier_inputs =
+        update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
+    let recurr_dto = AggregatorRecursiveDto {
+        num_round: num_round as u16,
+        voter: voter_snark.clone(),
+        previous: proposal.curr_agg_proof.unwrap(),
+        nullifier_tree_input: nullifier_inputs.1,
+    };
+
+    match call_submit_to_aggregator(recurr_dto).await {
+        Ok(_) => println!("recursive proof submited"),
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
+
+    proposal.curr_agg_proof = None;
+    proposal.curr_nullifier_preimages = nullifier_inputs.0;
+    // proposal.curr_nullifier_root = proof.instances[0][37];
+    proposal.curr_nullifier_root = None;
+    proposal.is_aggregator_available = false;
+    let proposal_id = proposal.id.unwrap().to_string();
+    match proposal_db.update(&proposal_id, proposal).await {
+        Ok(_) => {
+            println!("Vote submitted to aggregator from queue");
+            Ok(())
+        }
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }
 
@@ -260,6 +332,7 @@ pub async fn submit_vote_to_aggregator(
     proposal.curr_nullifier_preimages = nullifier_inputs.0;
     // proposal.curr_nullifier_root = proof.instances[0][37];
     proposal.curr_nullifier_root = None;
+    proposal.is_aggregator_available = false;
 
     match proposal_db.update(proposal_id, proposal).await {
         Ok(_) => {

@@ -53,8 +53,12 @@ pub struct Proposal {
 
     #[serde(rename = "PreviousNullifierLeaves")]
     pub curr_nullifier_preimages: Vec<IndexedMerkleTreeLeaf<Fr>>,
-    // #[serde(rename = "userProofQueue")]
-    // pub user_proof_queue: Vec<Vote>,
+
+    #[serde(rename = "IsAggregatorAvailable")]
+    pub is_aggregator_available: bool,
+    
+    #[serde(rename = "userProofQueue")]
+    pub user_proof_queue: Vec<Snark>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
