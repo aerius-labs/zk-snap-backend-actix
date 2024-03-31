@@ -1,5 +1,6 @@
 use actix_web::{get, post, web, HttpResponse, Responder};
 use aggregator::wrapper::common::Snark;
+use chrono::Utc;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::biguint_to_fe};
 use serde_json::json;
 use std::{env, io::Error};
@@ -15,7 +16,7 @@ use crate::app::{
     services::{
         dao_service::get_dao_by_id,
         proposal_service::{
-            create_proposal, get_merkle_proof, get_proposal_by_id, submit_proof_to_proposal, submit_vote_to_aggregator
+            create_proposal, get_merkle_proof, get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal, submit_vote_to_aggregator
         },
     },
     utils::parse_string_pub_key::convert_to_public_key_big_int,
@@ -119,6 +120,20 @@ async fn vote_on_proposal(
         }
     };
 
+    // check if voting on proposal started or not
+    if Utc::now() < proposal.start_time {
+        return HttpResponse::BadRequest().json(json!({
+            "message": "Voting on proposal has not started yet",
+        }));
+    }
+
+    // check if voting on proposal ended or not
+    if Utc::now() > proposal.end_time {
+        return HttpResponse::BadRequest().json(json!({
+            "message": "Voting on proposal has ended",
+        }));
+    }
+
     // Submit vote to aggregator or push user proof in queue
     log::debug!("Is aggregator available: {:?}", proposal.is_aggregator_available);
     if proposal.is_aggregator_available {
@@ -149,10 +164,17 @@ async fn get_results(
     path: web::Path<String>,
 ) -> impl Responder {
     let proposal_id = path.into_inner();
-    return HttpResponse::Ok().json(json!({
-        "message": "Getting results",
-        "proposal_id": proposal_id
-    }));
+    match get_result_on_proposal(proposal_db, &proposal_id).await {
+        Ok(result) => {
+            return HttpResponse::Ok().json(result);
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get results",
+                "Error": e.to_string()
+            }));
+        }
+    }
 }
 
 #[post("proposal/agg/")]

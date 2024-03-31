@@ -1,8 +1,6 @@
 use aggregator::wrapper::common::Snark;
-use bson::de;
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
-use halo2_base::halo2_proofs::arithmetic::log2_floor;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use halo2_base::utils::{biguint_to_fe, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
@@ -218,6 +216,34 @@ pub async fn get_proposal_by_id(
     }
 }
 
+pub async fn get_result_on_proposal(
+    db: web::Data<Repository<Proposal>>,
+    id: &str,
+) -> Result<(), Error> {
+    let mut proposal = get_proposal_by_id(db.clone(), id).await?;
+    
+    if proposal.status == "Completed" {
+        unimplemented!()
+        // TODO: calculate result and return result
+    } else {
+        if proposal.end_time > Utc::now() {
+            return Err(Error::new(ErrorKind::Other, "wait till end time"));
+        } else {
+            if proposal.user_proof_queue.is_empty() && proposal.is_aggregator_available {
+                proposal.status = "Completed".to_string();
+
+                proposal.encrypted_keys.pvt_key = decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
+                match db.update(id, proposal).await {
+                    Ok(_) => (),
+                    Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+                
+                }
+                // TODO: calculate result and return result
+            }
+        }
+    }
+    Ok(())
+}
 // call this function when vote queue is not empty
 async fn submit_to_aggregator_from_queue(
     proposal: Proposal,
