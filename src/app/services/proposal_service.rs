@@ -1,6 +1,8 @@
 use aggregator::wrapper::common::Snark;
+use bson::de;
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
+use halo2_base::halo2_proofs::arithmetic::log2_floor;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use halo2_base::utils::{biguint_to_fe, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
@@ -71,7 +73,7 @@ pub async fn create_proposal(
         init_nullifier_root: nullifier_root.clone(),
     };
 
-    println!("{:?}", aggregator_request_dto);
+    log::info!("base proof dto {:?}", aggregator_request_dto);
     // this creates the base proof
     match create_base_proof(aggregator_request_dto).await {
         Ok(_) => (),
@@ -159,6 +161,7 @@ pub async fn submit_proof_to_proposal(
     if num_round > 0 {
         proposal.curr_nullifier_root = Some(snark.instances[0][37]);
     }
+    log::debug!("num_round: {:?}", num_round);
 
     proposal.curr_agg_proof = Some(snark);
 
@@ -169,7 +172,7 @@ pub async fn submit_proof_to_proposal(
         let id = proposal.id.unwrap().to_string();
         match db.update(&id, proposal).await {
             Ok(_) => {
-                println!("Proof submitted to proposal");
+                log::info!("Proof submitted to proposal");
                 Ok(())
             },
             Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
@@ -177,7 +180,7 @@ pub async fn submit_proof_to_proposal(
     } else {
         match submit_to_aggregator_from_queue(proposal, db.clone()).await {
             Ok(_) => {
-                println!("Proof submitted to proposal from queue");
+                log::info!("Proof submitted to proposal from queue");
                 Ok(())
             },
             Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
@@ -215,6 +218,7 @@ pub async fn get_proposal_by_id(
     }
 }
 
+// call this function when vote queue is not empty
 async fn submit_to_aggregator_from_queue(
     proposal: Proposal,
     proposal_db: web::Data<Repository<Proposal>>,
@@ -253,7 +257,7 @@ async fn submit_to_aggregator_from_queue(
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
-        Ok(_) => println!("recursive proof submited"),
+        Ok(_) => log::info!("recursive proof submited to rabbitMQ to aggregator"),
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 
@@ -265,7 +269,7 @@ async fn submit_to_aggregator_from_queue(
     let proposal_id = proposal.id.unwrap().to_string();
     match proposal_db.update(&proposal_id, proposal).await {
         Ok(_) => {
-            println!("Vote submitted to aggregator from queue");
+            log::info!("Vote submitted to aggregator from queue");
             Ok(())
         }
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
@@ -324,7 +328,7 @@ pub async fn submit_vote_to_aggregator(
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
-        Ok(_) => println!("recursive proof submited"),
+        Ok(_) => log::info!("recursive proof submited to RabbitMQ from voter as aggregator is available"),
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 
@@ -336,7 +340,7 @@ pub async fn submit_vote_to_aggregator(
 
     match proposal_db.update(proposal_id, proposal).await {
         Ok(_) => {
-            println!("Vote submitted to aggregator");
+            log::info!("Vote submitted to aggregator, as queue is empty");
             Ok(())
         }
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
@@ -371,7 +375,7 @@ async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<(), Bo
         )
         .await?;
 
-    println!("recursive proof sent to {:?}", &queue_name);
+    log::info!("recursive proof sent to {:?}", &queue_name);
     Ok(())
 }
 async fn schedule_event(
@@ -481,7 +485,7 @@ async fn create_base_proof(
         )
         .await?;
 
-    println!("base proof sent to {:?}", &queue_name);
+    log::info!("base proof sent to {:?}", &queue_name);
     Ok(())
 }
 

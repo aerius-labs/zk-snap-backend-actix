@@ -120,7 +120,7 @@ async fn vote_on_proposal(
     };
 
     // Submit vote to aggregator or push user proof in queue
-    println!("Is aggregator available: {:?}", proposal.is_aggregator_available);
+    log::debug!("Is aggregator available: {:?}", proposal.is_aggregator_available);
     if proposal.is_aggregator_available {
         if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
             return HttpResponse::BadRequest().json(json!({
@@ -163,12 +163,10 @@ async fn submit_aggregated_snark(
     let snark = snark.into_inner();
     let len = snark.instances[0].len();
     let proposal_id = u16_from_fr(snark.instances[0][len-2]);
-    println!("Proposal ID: {:?}", snark.instances[0][len-2]);
-    println!("Proposal ID: {}", proposal_id);
 
     match submit_proof_to_proposal(proposal_db, proposal_id, snark).await {
         Ok(_) => {
-            println!("Proof submitted to proposal");
+            log::info!("Proof submitted to proposal");
             return HttpResponse::Ok().json(json!({
                 "message": "Submitting proof to proposal",
             }));
@@ -228,14 +226,14 @@ async fn create_vote_dto(
     let pk_enc = convert_to_public_key_big_int(&proposal.encrypted_keys.pub_key)?;
 
     let vote_dto = VoterDto {
-        proposal_id: 0 as u16,
+        proposal_id: proposal.proposal_id,
         pk_enc,
         membership_root: merkle_root,
         membership_proof,
         membership_proof_helper: helper,
     };
 
-    println!("{:?}", vote_dto);
+    log::info!("vote dto{:?}", vote_dto);
 
     Ok(vote_dto)
 }
@@ -249,8 +247,6 @@ async fn dummy_vote_call(vote_dto: VoterDto) -> Result<Snark, Error> {
         Ok(response) => response,
         Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
     };
-
-    println!("{:?}", response.status());
 
     if response.status().is_success() {
         let json: Snark = match response.json().await {

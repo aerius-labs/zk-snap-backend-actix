@@ -8,6 +8,7 @@ pub mod app;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
+    env_logger::init();
     // let db_client = web::Data::new(init_mongo().await);
     let client = match init_mongo().await {
         Ok(client) => client,

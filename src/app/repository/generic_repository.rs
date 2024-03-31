@@ -89,7 +89,6 @@ where
 
     pub async fn find_by_field(&self, field: &str, value: Bson) -> RepositoryResult<Option<T>> {
         let filter = doc! { field: value };
-        println!("Filter: {:?}", filter);
         let result = match self.collection.find_one(filter, None).await {
             Ok(result) => result,
             Err(e) => {
