@@ -1,5 +1,4 @@
-use crate::app::dtos::{AggregatorBaseDto, AggregatorRecursiveDto};
-use aggregator::wrapper::common::Snark;
+use crate::app::dtos::{AggregatorBaseDto, AggregatorRecursiveDto, ProofFromAggregator};
 use std::io::{Error, ErrorKind};
 use std::env;
 
@@ -11,12 +10,16 @@ pub async fn generate_base_proof(input: AggregatorBaseDto) -> Result<(), Error> 
     log::info!("{:?}", result.instances[0][len-2]);
 
     // Submit calculated base proof to proposal db
-    submit_snark(result).await?;
+    let res = ProofFromAggregator {
+        proof: result,
+        is_base: true,
+    };
+    submit_snark(res).await?;
 
     Ok(())
 }
 
-async fn submit_snark(proof: Snark) -> Result<(), Error> {
+async fn submit_snark(proof: ProofFromAggregator) -> Result<(), Error> {
     // Submit calculated snark to proposal db
     let url = env::var("BACKEND_ADDR").unwrap_or_else(|_| "http://localhost:8080/proposal/agg/".to_string());
     let client = reqwest::Client::new();
@@ -45,7 +48,11 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<(
     };
 
     // Submit calculated recursive proof to proposal db
-    submit_snark(result).await?;
+    let res = ProofFromAggregator {
+        proof: result,
+        is_base: false,
+    };
+    submit_snark(res).await?;
     Ok(())
 }
 

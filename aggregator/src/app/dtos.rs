@@ -35,3 +35,9 @@ pub struct VoterDto {
     pub membership_proof: Vec<Fr>,
     pub membership_proof_helper: Vec<Fr>,
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ProofFromAggregator {
+    pub proof: Snark,
+    pub is_base: bool,
+}

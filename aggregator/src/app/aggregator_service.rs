@@ -197,6 +197,8 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
         num_instance_columns: 1,
     };
 
+    log::debug!("Reading recursion proving key");
+
     let build_dir = env::current_dir()
         .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?
         .join("aggregator")
@@ -210,9 +212,9 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
         config.clone(),
     )
     .unwrap();
-
+    log::debug!("Read recursion pk");
     let circuit = RecursionCircuit::new(
-        halo2_base::gates::circuit::CircuitBuilderStage::Prover,
+        halo2_base::gates::circuit::CircuitBuilderStage::Mock,
         &params,
         input.voter,
         state_transition_snark,
@@ -221,9 +223,9 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
         config,
     );
 
-    log::info!("Running mock prover");
+    log::debug!("Running mock prover");
     MockProver::run(22, &circuit, circuit.instances()).unwrap().verify().unwrap();
-    log::info!("Mock prover finished");
+    log::debug!("Mock prover finished");
 
     Ok(gen_snark(&params, &recursion_pk, circuit))
 }
