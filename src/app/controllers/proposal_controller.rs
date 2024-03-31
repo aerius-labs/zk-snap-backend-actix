@@ -8,8 +8,7 @@ use validator::Validate;
 
 use crate::app::{
     dtos::{
-        dummy_vote_request::VoterDto,
-        proposal_dto::{self, CreateProposalDto},
+        aggregator_request_dto::ProofFromAggregator, dummy_vote_request::VoterDto, proposal_dto::{self, CreateProposalDto}
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
@@ -180,13 +179,14 @@ async fn get_results(
 #[post("proposal/agg/")]
 async fn submit_aggregated_snark(
     proposal_db: web::Data<Repository<Proposal>>,
-    snark: web::Json<Snark>,
+    res: web::Json<ProofFromAggregator>,
 ) -> impl Responder {
-    let snark = snark.into_inner();
+    let res = res.into_inner();
+    let snark = res.clone().proof;
     let len = snark.instances[0].len();
     let proposal_id = u16_from_fr(snark.instances[0][len-2]);
 
-    match submit_proof_to_proposal(proposal_db, proposal_id, snark).await {
+    match submit_proof_to_proposal(proposal_db, proposal_id, res).await {
         Ok(_) => {
             log::info!("Proof submitted to proposal");
             return HttpResponse::Ok().json(json!({

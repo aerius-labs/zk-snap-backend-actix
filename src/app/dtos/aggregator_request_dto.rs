@@ -1,3 +1,5 @@
+use std::clone;
+
 use crate::app::utils::parse_string_pub_key::EncryptionPublicKey;
 use aggregator::{state_transition::IndexedMerkleTreeInput, wrapper::common::Snark};
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
@@ -25,4 +27,10 @@ pub struct AggregatorRecursiveDto {
 pub enum MessageType {
     Base(AggregatorBaseDto),
     Recursive(AggregatorRecursiveDto),
+}
+
+#[derive(Serialize, Deserialize, clone::Clone)]
+pub struct ProofFromAggregator {
+    pub proof: Snark,
+    pub is_base: bool,
 }

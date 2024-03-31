@@ -14,7 +14,7 @@ use voter::merkletree::native::MerkleTree;
 
 use super::dao_service;
 use crate::app::dtos::aggregator_request_dto::{
-    AggregatorBaseDto, AggregatorRecursiveDto, MessageType,
+    AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
 use crate::app::dtos::proposal_dto::MerkleProofVoter;
 use crate::app::entities::proposal_entity::EncryptedKeys;
@@ -128,7 +128,7 @@ async fn generate_unique_random_id(db: web::Data<Repository<Proposal>>) -> Resul
 pub async fn submit_proof_to_proposal(
     db: web::Data<Repository<Proposal>>,
     proposal_id: u16,
-    snark: Snark,
+    res: ProofFromAggregator,
 ) -> Result<(), Error> {
     let proposal_bson = bson::Bson::Int32(proposal_id as i32);
     let proposal = match db.find_by_field("proposalId", proposal_bson).await {
@@ -143,12 +143,14 @@ pub async fn submit_proof_to_proposal(
 
     let mut num_round: u64 = 0;
 
+    let snark = res.proof;
     if snark.instances[0].last().is_none() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
             "Invalid previous snark proof",
         ));
     } else {
+        // TODO: remove last and unwrap and use round index
         num_round = snark.instances[0]
             .last()
             .unwrap()
@@ -156,7 +158,7 @@ pub async fn submit_proof_to_proposal(
             .to_u64_limbs(1, 63)[0];
     }
 
-    if num_round > 0 {
+    if !res.is_base {
         proposal.curr_nullifier_root = Some(snark.instances[0][37]);
     }
     log::debug!("num_round: {:?}", num_round);
