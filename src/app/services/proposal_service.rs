@@ -2,9 +2,10 @@ use aggregator::wrapper::common::Snark;
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
-use halo2_base::utils::{biguint_to_fe, ScalarField};
+use halo2_base::utils::{biguint_to_fe, fe_to_biguint, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
+use num_bigint::BigUint;
 use pse_poseidon::Poseidon;
 use reqwest::Client;
 use std::env;
@@ -16,7 +17,7 @@ use super::dao_service;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::MerkleProofVoter;
+use crate::app::dtos::proposal_dto::{MerkleProofVoter, VoteResultDto};
 use crate::app::entities::proposal_entity::EncryptedKeys;
 use crate::app::utils::index_merkle_tree_helper::update_nullifier_tree;
 use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
@@ -221,12 +222,11 @@ pub async fn get_proposal_by_id(
 pub async fn get_result_on_proposal(
     db: web::Data<Repository<Proposal>>,
     id: &str,
-) -> Result<(), Error> {
+) -> Result<Vec<String>, Error> {
     let mut proposal = get_proposal_by_id(db.clone(), id).await?;
     
     if proposal.status == "Completed" {
-        unimplemented!()
-        // TODO: calculate result and return result
+       return Ok(proposal.result);
     } else {
         if proposal.end_time > Utc::now() {
             return Err(Error::new(ErrorKind::Other, "wait till end time"));
@@ -235,16 +235,51 @@ pub async fn get_result_on_proposal(
                 proposal.status = "Completed".to_string();
 
                 proposal.encrypted_keys.pvt_key = decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
-                match db.update(id, proposal).await {
-                    Ok(_) => (),
-                    Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-                
-                }
-                // TODO: calculate result and return result
+                let snark = proposal.curr_agg_proof.clone().ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
+                let vote = snark.instances[0][17..37].chunks(4).map(|v| limbs_to_biguint(v.to_vec())).collect::<Vec<BigUint>>();
+                let vote_in_string = vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+                let result_dto = VoteResultDto {
+                    pvt: proposal.encrypted_keys.pvt_key.clone(),
+                    vote: vote_in_string,
+                };
+                let election_result = call_reveal_result(result_dto).await?;
+                proposal.result = election_result.clone();
+                db.update(id, proposal).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+                Ok(election_result)
+            } else {
+                return Err(Error::new(ErrorKind::Other, "wait till all votes are processed"));
             }
         }
     }
-    Ok(())
+}
+
+async fn call_reveal_result(result_dto: VoteResultDto) -> Result<Vec<String>, Error> {
+    let addr = std::env::var("GET_RESULT_ADDR").unwrap_or_else(|_| "http://localhost:8080".into());
+    let client = reqwest::Client::new();
+    let response = match client.post(&addr).json(&result_dto).send().await {
+        Ok(response) => response,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+    };
+
+    if response.status().is_success() {
+        let json: Vec<String> = match response.json().await {
+            Ok(json) => json,
+            Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+        };
+        Ok(json)
+    } else {
+        Err(Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to get result",
+        ))
+    }
+}
+
+fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
+    x.iter()
+        .enumerate()
+        .map(|(i, limb)| fe_to_biguint(limb) * BigUint::from(2u64).pow(88 * (i as u32)))
+        .sum()
 }
 // call this function when vote queue is not empty
 async fn submit_to_aggregator_from_queue(

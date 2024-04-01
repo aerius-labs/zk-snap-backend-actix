@@ -72,6 +72,12 @@ pub struct DecryptResponse {
     pub value: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct VoteResultDto {
+    pub pvt: String,
+    pub vote: Vec<String>
+}
+
 #[derive(Serialize, Deserialize, Validate, Debug)]
 pub struct UpdateProposalDto {
     #[validate(custom = "validate_title_length")]
