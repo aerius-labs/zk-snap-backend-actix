@@ -56,7 +56,7 @@ pub struct Proposal {
 
     #[serde(rename = "IsAggregatorAvailable")]
     pub is_aggregator_available: bool,
-    
+
     #[serde(rename = "userProofQueue")]
     pub user_proof_queue: Vec<Snark>,
 }

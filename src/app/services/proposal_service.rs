@@ -175,7 +175,7 @@ pub async fn submit_proof_to_proposal(
             Ok(_) => {
                 log::info!("Proof submitted to proposal");
                 Ok(())
-            },
+            }
             Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
         }
     } else {
@@ -183,7 +183,7 @@ pub async fn submit_proof_to_proposal(
             Ok(_) => {
                 log::info!("Proof submitted to proposal from queue");
                 Ok(())
-            },
+            }
             Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
         }
     }
@@ -224,9 +224,9 @@ pub async fn get_result_on_proposal(
     id: &str,
 ) -> Result<Vec<String>, Error> {
     let mut proposal = get_proposal_by_id(db.clone(), id).await?;
-    
+
     if proposal.status == "Completed" {
-       return Ok(proposal.result);
+        return Ok(proposal.result);
     } else {
         if proposal.end_time > Utc::now() {
             return Err(Error::new(ErrorKind::Other, "wait till end time"));
@@ -234,9 +234,16 @@ pub async fn get_result_on_proposal(
             if proposal.user_proof_queue.is_empty() && proposal.is_aggregator_available {
                 proposal.status = "Completed".to_string();
 
-                proposal.encrypted_keys.pvt_key = decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
-                let snark = proposal.curr_agg_proof.clone().ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
-                let vote = snark.instances[0][17..37].chunks(4).map(|v| limbs_to_biguint(v.to_vec())).collect::<Vec<BigUint>>();
+                proposal.encrypted_keys.pvt_key =
+                    decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
+                let snark = proposal
+                    .curr_agg_proof
+                    .clone()
+                    .ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
+                let vote = snark.instances[0][17..37]
+                    .chunks(4)
+                    .map(|v| limbs_to_biguint(v.to_vec()))
+                    .collect::<Vec<BigUint>>();
                 let vote_in_string = vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
                 let result_dto = VoteResultDto {
                     pvt: proposal.encrypted_keys.pvt_key.clone(),
@@ -244,10 +251,15 @@ pub async fn get_result_on_proposal(
                 };
                 let election_result = call_reveal_result(result_dto).await?;
                 proposal.result = election_result.clone();
-                db.update(id, proposal).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+                db.update(id, proposal)
+                    .await
+                    .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
                 Ok(election_result)
             } else {
-                return Err(Error::new(ErrorKind::Other, "wait till all votes are processed"));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "wait till all votes are processed",
+                ));
             }
         }
     }
@@ -285,7 +297,7 @@ fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
 async fn submit_to_aggregator_from_queue(
     proposal: Proposal,
     proposal_db: web::Data<Repository<Proposal>>,
-) -> Result<(), Error>{
+) -> Result<(), Error> {
     let mut proposal = proposal;
     let mut user_proof_queue = proposal.user_proof_queue.clone();
     let voter_snark = user_proof_queue.remove(0);
@@ -295,10 +307,12 @@ async fn submit_to_aggregator_from_queue(
     hasher.update(voter_snark.instances[0][24..28].as_ref());
     let nullifier = hasher.squeeze_and_reset();
 
-
     let mut num_round: u64 = 0;
 
-    if proposal.curr_agg_proof.clone().unwrap().instances[0].last().is_none() {
+    if proposal.curr_agg_proof.clone().unwrap().instances[0]
+        .last()
+        .is_none()
+    {
         return Err(Error::new(
             ErrorKind::InvalidInput,
             "Invalid previous snark proof",
@@ -391,7 +405,9 @@ pub async fn submit_vote_to_aggregator(
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
-        Ok(_) => log::info!("recursive proof submited to RabbitMQ from voter as aggregator is available"),
+        Ok(_) => {
+            log::info!("recursive proof submited to RabbitMQ from voter as aggregator is available")
+        }
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 
@@ -410,7 +426,9 @@ pub async fn submit_vote_to_aggregator(
     }
 }
 
-async fn call_submit_to_aggregator(dto: AggregatorRecursiveDto) -> Result<(), Box<dyn std::error::Error>> {
+async fn call_submit_to_aggregator(
+    dto: AggregatorRecursiveDto,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Connect to rabbit MQ
     let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
     let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;

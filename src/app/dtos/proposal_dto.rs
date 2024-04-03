@@ -75,7 +75,7 @@ pub struct DecryptResponse {
 #[derive(Serialize, Deserialize)]
 pub struct VoteResultDto {
     pub pvt: String,
-    pub vote: Vec<String>
+    pub vote: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Validate, Debug)]

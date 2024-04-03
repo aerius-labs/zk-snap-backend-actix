@@ -8,14 +8,17 @@ use validator::Validate;
 
 use crate::app::{
     dtos::{
-        aggregator_request_dto::ProofFromAggregator, dummy_vote_request::VoterDto, proposal_dto::{self, CreateProposalDto}
+        aggregator_request_dto::ProofFromAggregator,
+        dummy_vote_request::VoterDto,
+        proposal_dto::{self, CreateProposalDto},
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
     services::{
         dao_service::get_dao_by_id,
         proposal_service::{
-            create_proposal, get_merkle_proof, get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal, submit_vote_to_aggregator
+            create_proposal, get_merkle_proof, get_proposal_by_id, get_result_on_proposal,
+            submit_proof_to_proposal, submit_vote_to_aggregator,
         },
     },
     utils::parse_string_pub_key::convert_to_public_key_big_int,
@@ -109,7 +112,7 @@ async fn vote_on_proposal(
     // check if is_aggregator_available is true
     // if true, submit vote to aggregator
     // else, push user proof in a queue
-    let mut proposal = match get_proposal_by_id(proposal_db.clone(), &proposal_id).await{
+    let mut proposal = match get_proposal_by_id(proposal_db.clone(), &proposal_id).await {
         Ok(result) => result,
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
@@ -134,7 +137,10 @@ async fn vote_on_proposal(
     }
 
     // Submit vote to aggregator or push user proof in queue
-    log::debug!("Is aggregator available: {:?}", proposal.is_aggregator_available);
+    log::debug!(
+        "Is aggregator available: {:?}",
+        proposal.is_aggregator_available
+    );
     if proposal.is_aggregator_available {
         if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
             return HttpResponse::BadRequest().json(json!({
@@ -154,7 +160,7 @@ async fn vote_on_proposal(
 
     HttpResponse::Ok().json(json!({
         "message": "Voting on proposal",
-    }))    
+    }))
 }
 
 #[get("proposal/{proposal_id}")]
@@ -184,7 +190,7 @@ async fn submit_aggregated_snark(
     let res = res.into_inner();
     let snark = res.clone().proof;
     let len = snark.instances[0].len();
-    let proposal_id = u16_from_fr(snark.instances[0][len-2]);
+    let proposal_id = u16_from_fr(snark.instances[0][len - 2]);
 
     match submit_proof_to_proposal(proposal_db, proposal_id, res).await {
         Ok(_) => {
@@ -209,7 +215,11 @@ async fn get_proposal(
 ) -> impl Responder {
     let proposal_id = path.into_inner();
     let proposal_id_bson = bson::Bson::Int32(proposal_id as i32); // Convert proposal_id to Bson type
-    match proposal_db.find_by_field("proposalId", proposal_id_bson).await { // Pass proposal_id_bson to find_by_field
+    match proposal_db
+        .find_by_field("proposalId", proposal_id_bson)
+        .await
+    {
+        // Pass proposal_id_bson to find_by_field
         Ok(result) => {
             return HttpResponse::Ok().json(result);
         }
@@ -222,10 +232,9 @@ async fn get_proposal(
     }
 }
 
-
 // function to convert proposal_if from Fr to u64
-fn u16_from_fr(fr: Fr)->u16{
-    let mut bytes=Vec::new();
+fn u16_from_fr(fr: Fr) -> u16 {
+    let mut bytes = Vec::new();
     bytes.extend_from_slice(&fr.to_bytes()[0..2]);
     u16::from_le_bytes(bytes.try_into().unwrap())
 }
