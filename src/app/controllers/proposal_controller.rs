@@ -10,7 +10,7 @@ use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
         dummy_vote_request::VoterDto,
-        proposal_dto::{self, CreateProposalDto},
+        proposal_dto::{self, CreateProposalDto, ProposalResponseDto},
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
@@ -234,10 +234,29 @@ async fn get_proposal(
 }
 
 #[get("proposal/all_proposals")]
-async fn get_proposals(db: web::Data<Repository<Proposal>>) -> impl Responder {
+async fn get_proposals(
+    db: web::Data<Repository<Proposal>>,
+    dao_db: web::Data<Repository<Dao>>,
+) -> impl Responder {
     match get_all_proposals(db).await {
-        Ok(result) => {
-            return HttpResponse::Ok().json(result);
+        Ok(proposals) => {
+            let mut proposals_res: Vec<ProposalResponseDto> = Vec::new();
+            for proposal in proposals {
+                if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
+                    let dao = dao.unwrap();
+                    let dto = ProposalResponseDto {
+                        dao_name: dao.name,
+                        dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
+                        creator: proposal.creator,
+                        title: proposal.title,
+                        status: proposal.status,
+                        start_time: proposal.start_time,
+                        end_time: proposal.end_time,
+                    };
+                    proposals_res.push(dto);
+                }
+            }
+            return HttpResponse::Ok().json(proposals_res);
         }
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
