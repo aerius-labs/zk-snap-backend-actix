@@ -8,6 +8,8 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         dao_controller::find_by_id,
         dao_controller::delete_dao,
         dao_controller::update_dao,
+    ))
+    .service((
         proposal_controller::create,
         proposal_controller::get_merkle_proof_from_pub,
         proposal_controller::vote_on_proposal,
@@ -15,5 +17,6 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         proposal_controller::get_proposal,
         proposal_controller::get_proposals,
         proposal_controller::get_all_proposals_by_dao,
+        proposal_controller::send_voter_dto,
     ))
 }

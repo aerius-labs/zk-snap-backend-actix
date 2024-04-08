@@ -274,7 +274,33 @@ fn u16_from_fr(fr: Fr) -> u16 {
     u16::from_le_bytes(bytes.try_into().unwrap())
 }
 
-// TODO: Delete this function once after wasm is done
+#[get("proposal/send_voter_dto/{proposal_id}/{voter_pub_key}")]
+async fn send_voter_dto(
+    proposal_db: web::Data<Repository<Proposal>>,
+    doa_db: web::Data<Repository<Dao>>,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let (proposal_id, voter_pub_key) = path.into_inner();
+    let voter_dto = match create_vote_dto(
+        proposal_db.clone(),
+        doa_db.clone(),
+        &proposal_id,
+        &voter_pub_key,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to create vote dto",
+                "Error": e.to_string()
+            }));
+        }
+    };
+
+    HttpResponse::Ok().json(voter_dto)
+}
+
 async fn create_vote_dto(
     proposal_db: web::Data<Repository<Proposal>>,
     doa_db: web::Data<Repository<Dao>>,
