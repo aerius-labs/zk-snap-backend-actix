@@ -267,15 +267,32 @@ async fn get_proposals(
     }
 }
 
-#[get("proposal/all/{dao_id}")]
+#[get("proposals_all_by_dao/{dao_id}")]
 async fn get_all_proposals_by_dao(
     db: web::Data<Repository<Proposal>>,
+    dao_db: web::Data<Repository<Dao>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let dao_id = path.into_inner();
     match get_proposal_by_dao_id(db, &dao_id).await {
         Ok(result) => {
-            return HttpResponse::Ok().json(result);
+            let mut proposals_res: Vec<ProposalResponseDto> = Vec::new();
+            for proposal in result {
+                if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
+                    let dao = dao.unwrap();
+                    let dto = ProposalResponseDto {
+                        dao_name: dao.name,
+                        dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
+                        creator: proposal.creator,
+                        title: proposal.title,
+                        status: proposal.status,
+                        start_time: proposal.start_time,
+                        end_time: proposal.end_time,
+                    };
+                    proposals_res.push(dto);
+                }
+            }
+            return HttpResponse::Ok().json(proposals_res);
         }
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
