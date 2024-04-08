@@ -17,8 +17,9 @@ use crate::app::{
     services::{
         dao_service::get_dao_by_id,
         proposal_service::{
-            create_proposal, get_merkle_proof, get_proposal_by_id, get_result_on_proposal,
-            submit_proof_to_proposal, submit_vote_to_aggregator, get_all_proposals,
+            create_proposal, get_all_proposals, get_merkle_proof, get_proposal_by_dao_id,
+            get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal,
+            submit_vote_to_aggregator,
         },
     },
     utils::parse_string_pub_key::convert_to_public_key_big_int,
@@ -241,6 +242,25 @@ async fn get_proposals(db: web::Data<Repository<Proposal>>) -> impl Responder {
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
                 "message": "Failed to get all proposals",
+                "Error": e.to_string()
+            }));
+        }
+    }
+}
+
+#[get("proposal/all/{dao_id}")]
+async fn get_all_proposals_by_dao(
+    db: web::Data<Repository<Proposal>>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let dao_id = path.into_inner();
+    match get_proposal_by_dao_id(db, &dao_id).await {
+        Ok(result) => {
+            return HttpResponse::Ok().json(result);
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "Failed to get all proposals by dao",
                 "Error": e.to_string()
             }));
         }

@@ -13,5 +13,7 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         proposal_controller::vote_on_proposal,
         proposal_controller::submit_aggregated_snark,
         proposal_controller::get_proposal,
+        proposal_controller::get_proposals,
+        proposal_controller::get_all_proposals_by_dao,
     ))
 }

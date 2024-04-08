@@ -84,6 +84,25 @@ where
             .map_err(|e| RepositoryError::InternalError(e.to_string()))
     }
 
+    pub async fn find_all_by_field(&self, field: &str, value: Bson) -> RepositoryResult<Vec<T>> {
+        let filter = doc! { field: value };
+        let mut cursor = self
+            .collection
+            .find(filter, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(document) => results.push(document),
+                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
+            }
+        }
+
+        Ok(results)
+    }
+
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
         let obj_id =
             ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;

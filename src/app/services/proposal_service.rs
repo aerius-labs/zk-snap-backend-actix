@@ -296,6 +296,17 @@ pub async fn get_all_proposals(
     }
 }
 
+pub async fn get_proposal_by_dao_id(
+    db: web::Data<Repository<Proposal>>,
+    dao_id: &str,
+) -> Result<Vec<Proposal>, Error> {
+    let dao_id = bson::Bson::String(dao_id.to_string());
+    match db.find_all_by_field("daoId", dao_id).await {
+        Ok(result) => Ok(result),
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
+}
+
 fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
     x.iter()
         .enumerate()
