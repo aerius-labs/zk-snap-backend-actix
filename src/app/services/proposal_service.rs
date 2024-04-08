@@ -287,6 +287,15 @@ async fn call_reveal_result(result_dto: VoteResultDto) -> Result<Vec<String>, Er
     }
 }
 
+pub async fn get_all_proposals(
+    db: web::Data<Repository<Proposal>>,
+) -> Result<Vec<Proposal>, Error> {
+    match db.find_all().await {
+        Ok(result) => Ok(result),
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+    }
+}
+
 fn limbs_to_biguint(x: Vec<Fr>) -> BigUint {
     x.iter()
         .enumerate()
