@@ -1,5 +1,6 @@
 use crate::app::config::init_mongo;
 use crate::app::entities::{dao_entity::Dao, proposal_entity::Proposal};
+use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use app::repository::generic_repository::Repository;
 
@@ -25,7 +26,18 @@ async fn main() -> std::io::Result<()> {
     let proposal_service_data = web::Data::new(proposal_service);
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![
+                actix_web::http::header::AUTHORIZATION,
+                actix_web::http::header::ACCEPT,
+            ])
+            .allowed_header(actix_web::http::header::CONTENT_TYPE)
+            .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .app_data(dao_service_data.clone())
             .app_data(proposal_service_data.clone())
             .configure(app::init::initialize)
