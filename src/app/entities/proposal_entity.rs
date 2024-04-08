@@ -40,7 +40,7 @@ pub struct Proposal {
     pub voting_options: Vec<String>,
 
     #[serde(rename = "status")]
-    pub status: String, // Could be refined to an Enum if desired
+    pub status: ProposalStatus, // Could be refined to an Enum if desired
 
     #[serde(rename = "result")]
     pub result: Vec<String>,
@@ -75,6 +75,13 @@ pub struct Vote {
     // Simplified representation, assuming ZkProof is a struct defined elsewhere
     #[serde(rename = "userProof")]
     pub user_proof: ZkProof,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ProposalStatus {
+    Active,
+    Inactive,
+    Completed,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -18,7 +18,7 @@ use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
 use crate::app::dtos::proposal_dto::{MerkleProofVoter, VoteResultDto};
-use crate::app::entities::proposal_entity::EncryptedKeys;
+use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
 use crate::app::utils::index_merkle_tree_helper::update_nullifier_tree;
 use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
 use crate::app::utils::nullifier_helper::generate_nullifier_root;
@@ -79,6 +79,10 @@ pub async fn create_proposal(
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     };
 
+    let id = ObjectId::new();
+
+    schedule_event(&id.to_string(), db.clone(), proposal.start_time);
+
     let proposal = Proposal {
         creator: proposal.creator,
         title: proposal.title,
@@ -89,7 +93,7 @@ pub async fn create_proposal(
         end_time: proposal.end_time,
         encrypted_keys: encrypted_keys.clone(),
         voting_options: proposal.voting_options,
-        status: "Pending".to_string(),
+        status: ProposalStatus::Inactive,
         result: vec![],
         curr_agg_proof: None,
         is_aggregator_available: false,
@@ -225,41 +229,49 @@ pub async fn get_result_on_proposal(
 ) -> Result<Vec<String>, Error> {
     let mut proposal = get_proposal_by_id(db.clone(), id).await?;
 
-    if proposal.status == "Completed" {
-        return Ok(proposal.result);
-    } else {
-        if proposal.end_time > Utc::now() {
-            return Err(Error::new(ErrorKind::Other, "wait till end time"));
-        } else {
-            if proposal.user_proof_queue.is_empty() && proposal.is_aggregator_available {
-                proposal.status = "Completed".to_string();
+    match proposal.status {
+        ProposalStatus::Inactive => {
+            return Err(Error::new(ErrorKind::Other, "Proposal is not started yet"));
+        }
+        ProposalStatus::Completed => {
+            return Ok(proposal.result);
+        }
 
-                proposal.encrypted_keys.pvt_key =
-                    decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
-                let snark = proposal
-                    .curr_agg_proof
-                    .clone()
-                    .ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
-                let vote = snark.instances[0][17..37]
-                    .chunks(4)
-                    .map(|v| limbs_to_biguint(v.to_vec()))
-                    .collect::<Vec<BigUint>>();
-                let vote_in_string = vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
-                let result_dto = VoteResultDto {
-                    pvt: proposal.encrypted_keys.pvt_key.clone(),
-                    vote: vote_in_string,
-                };
-                let election_result = call_reveal_result(result_dto).await?;
-                proposal.result = election_result.clone();
-                db.update(id, proposal)
-                    .await
-                    .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-                Ok(election_result)
+        ProposalStatus::Active => {
+            if proposal.end_time > Utc::now() {
+                return Err(Error::new(ErrorKind::Other, "wait till end time"));
             } else {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "wait till all votes are processed",
-                ));
+                if proposal.user_proof_queue.is_empty() && proposal.is_aggregator_available {
+                    proposal.status = ProposalStatus::Completed;
+
+                    proposal.encrypted_keys.pvt_key =
+                        decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
+                    let snark = proposal
+                        .curr_agg_proof
+                        .clone()
+                        .ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
+                    let vote = snark.instances[0][17..37]
+                        .chunks(4)
+                        .map(|v| limbs_to_biguint(v.to_vec()))
+                        .collect::<Vec<BigUint>>();
+                    let vote_in_string =
+                        vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+                    let result_dto = VoteResultDto {
+                        pvt: proposal.encrypted_keys.pvt_key.clone(),
+                        vote: vote_in_string,
+                    };
+                    let election_result = call_reveal_result(result_dto).await?;
+                    proposal.result = election_result.clone();
+                    db.update(id, proposal)
+                        .await
+                        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+                    Ok(election_result)
+                } else {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        "wait till all votes are processed",
+                    ));
+                }
             }
         }
     }
@@ -479,25 +491,26 @@ async fn call_submit_to_aggregator(
     log::info!("recursive proof sent to {:?}", &queue_name);
     Ok(())
 }
+
 async fn schedule_event(
     proposal_id: &str,
     db: web::Data<Repository<Proposal>>,
-    end_time: DateTime<Utc>,
+    start_time: DateTime<Utc>,
 ) {
     let now = Utc::now();
-    if end_time > now {
-        let wait_duration = (end_time - now).to_std().unwrap();
+    if start_time > now {
+        let wait_duration = (start_time - now).to_std().unwrap();
         let sleep_time = Instant::now() + wait_duration;
         sleep_until(sleep_time).await;
     }
 
-    match handle_event_end(proposal_id, db).await {
+    match handle_event_start(proposal_id, db).await {
         Ok(_) => (),
         Err(e) => println!("Failed to handle event end: {}", e),
     }
 }
 
-async fn handle_event_end(
+async fn handle_event_start(
     proposal_id: &str,
     db: web::Data<Repository<Proposal>>,
 ) -> Result<(), Error> {
@@ -507,14 +520,7 @@ async fn handle_event_end(
         None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
     };
 
-    let encrypted_keys = proposal.encrypted_keys;
-    let mut encrypted_keys = encrypted_keys.clone();
-
-    let pvt_key = decrypt_keys(encrypted_keys.pvt_key).await.unwrap();
-
-    encrypted_keys.pvt_key = pvt_key;
-
-    proposal.encrypted_keys = encrypted_keys;
+    proposal.status = ProposalStatus::Active;
 
     match db.update(proposal_id, proposal).await {
         Ok(_) => Ok(()),
