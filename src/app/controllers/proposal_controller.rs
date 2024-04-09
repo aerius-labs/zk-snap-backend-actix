@@ -22,7 +22,7 @@ use crate::app::{
             submit_vote_to_aggregator,
         },
     },
-    utils::parse_string_pub_key::convert_to_public_key_big_int,
+    utils::parse_string_pub_key::{convert_to_public_key_big_int, public_key_to_eth_address},
 };
 
 #[post("proposal/")]
@@ -244,10 +244,19 @@ async fn get_proposals(
             for proposal in proposals {
                 if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
                     let dao = dao.unwrap();
+                    let creator = match public_key_to_eth_address(&proposal.creator) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            return HttpResponse::BadRequest().json(json!({
+                                "message": "Failed to get all proposals by dao",
+                                "Error": e.to_string()
+                            }))
+                        }
+                    };
                     let dto = ProposalResponseDto {
                         dao_name: dao.name,
                         dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
-                        creator: proposal.creator,
+                        creator,
                         title: proposal.title,
                         status: proposal.status,
                         start_time: proposal.start_time,
@@ -280,10 +289,19 @@ async fn get_all_proposals_by_dao(
             for proposal in result {
                 if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
                     let dao = dao.unwrap();
+                    let creator = match public_key_to_eth_address(&proposal.creator) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            return HttpResponse::BadRequest().json(json!({
+                                "message": "Failed to get all proposals by dao",
+                                "Error": e.to_string()
+                            }))
+                        }
+                    };
                     let dto = ProposalResponseDto {
                         dao_name: dao.name,
                         dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
-                        creator: proposal.creator,
+                        creator,
                         title: proposal.title,
                         status: proposal.status,
                         start_time: proposal.start_time,

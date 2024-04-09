@@ -32,3 +32,4 @@ rand = "0.8"
 lapin = { version = "2.3.1", default-features = false }
 log = "0.4"
 env_logger = "0.9"
+sha3 = "0.10.1"

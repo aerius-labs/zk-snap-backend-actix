@@ -3,6 +3,9 @@ use std::io::Error;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
+use hex::{decode, encode};
+use sha3::{Digest, Keccak256};
+
 #[derive(Deserialize, Debug)]
 struct PublicKey {
     pub n: String,
@@ -53,4 +56,25 @@ pub fn convert_to_public_key_big_int(pub_key_json: &str) -> Result<EncryptionPub
 
     // Use the `n` and `g` to create PublicKeyBigInt
     Ok(EncryptionPublicKey::new(pub_key.n, pub_key.g)?)
+}
+
+pub fn public_key_to_eth_address(public_key_hex: &str) -> Result<String, hex::FromHexError> {
+    // Decode the hex string to bytes, skipping the first 2 characters to remove the "0x" prefix
+    let public_key = decode(&public_key_hex[2..])?;
+
+    // Ensure the public key is in the correct format (uncompressed, without the 0x04 prefix if present)
+    let public_key = if public_key.starts_with(&[0x04]) {
+        &public_key[1..]
+    } else {
+        &public_key
+    };
+
+    // Hash the public key using Keccak-256
+    let mut hasher = Keccak256::new();
+    hasher.update(public_key);
+    let result = hasher.finalize();
+
+    // Take the last 20 bytes and convert them to a hex string with '0x' prefix
+    let address = &result[12..];
+    Ok(format!("0x{}", encode(address)))
 }
