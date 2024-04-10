@@ -23,3 +23,11 @@ pub struct CreateDaoDto {
     #[validate(length(min = 1))]
     pub members: Vec<String>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct DaoResponseDto {
+    pub name: String,
+    pub logo: String,
+    pub id: String,
+    pub members_count: usize,
+}
