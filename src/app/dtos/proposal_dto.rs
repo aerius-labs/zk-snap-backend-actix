@@ -3,7 +3,7 @@ use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::app::entities::proposal_entity::ProposalStatus;
+use crate::app::entities::proposal_entity::{Proposal, ProposalStatus};
 
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
@@ -57,6 +57,19 @@ pub struct ProposalResponseDto {
     pub status: ProposalStatus,
     pub start_time: chrono::DateTime<Utc>,
     pub end_time: chrono::DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ProposalByIdResponseDto {
+    pub dao_name: String, 
+    pub creator_address: String,
+    pub proposal_id: String,
+    pub proposal_name: String,
+    pub proposal_description: String,
+    pub proposal_tile: String,
+    pub start_time: chrono::DateTime<Utc>,
+    pub end_time: chrono::DateTime<Utc>,
+    
 }
 
 #[derive(Serialize, Deserialize)]

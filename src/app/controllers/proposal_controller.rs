@@ -3,14 +3,14 @@ use aggregator::wrapper::common::Snark;
 use chrono::Utc;
 use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::biguint_to_fe};
 use serde_json::json;
-use std::{env, io::Error};
+use std::{env, io::Error };
 use validator::Validate;
 
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
         dummy_vote_request::VoterDto,
-        proposal_dto::{self, CreateProposalDto, ProposalResponseDto},
+        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto},
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
@@ -164,7 +164,7 @@ async fn vote_on_proposal(
     }))
 }
 
-#[get("proposal/{proposal_id}")]
+#[get("proposal/get_result/{proposal_id}")]
 async fn get_results(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<String>,
@@ -182,6 +182,44 @@ async fn get_results(
         }
     }
 }
+
+#[get("proposal_by_id/{proposal_id}")]
+async fn get_proposal_by_uid(
+    proposal_db: web::Data<Repository<Proposal>>,
+    dao_db: web::Data<Repository<Dao>>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let proposal_id = path.into_inner();
+    let proposal = match get_proposal_by_id(proposal_db, &proposal_id).await {
+        Ok(proposal) => proposal,
+        Err(e) => return HttpResponse::BadRequest().json(json!({ "message": "Failed to find proposal", "error": e.to_string() })),
+    };
+
+    let dao = match dao_db.find_by_id(&proposal.dao_id).await {
+        Ok(Some(dao)) => dao,
+        Ok(None) => return HttpResponse::NotFound().json(json!({ "message": "DAO not found" })),
+        Err(e) => return HttpResponse::InternalServerError().json(json!({ "message": "Error fetching DAO", "error": e.to_string() })),
+    };
+
+    let creator_address = match public_key_to_eth_address(&proposal.creator) {
+        Ok(address) => address,
+        Err(_) => return HttpResponse::InternalServerError().json(json!({ "message": "Failed to convert public key to address" })),
+    };
+
+    let resp = ProposalByIdResponseDto {
+        dao_name: dao.name,
+        creator_address,
+        proposal_id,
+        proposal_description: proposal.description,
+        proposal_name: proposal.title.clone(), // Assuming this should match the `proposal_name` field
+        proposal_tile: proposal.title,
+        start_time: proposal.start_time,
+        end_time: proposal.end_time,
+    };
+
+    HttpResponse::Ok().json(resp)
+}
+
 
 #[post("proposal/agg/")]
 async fn submit_aggregated_snark(
