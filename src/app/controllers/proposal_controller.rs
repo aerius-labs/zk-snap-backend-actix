@@ -58,7 +58,7 @@ async fn create(
     }
 }
 
-#[get("proposal/{dao_id}/{member_pub_key}")]
+#[get("proposal/dao/{dao_id}/{member_pub_key}")]
 async fn get_merkle_proof_from_pub(
     dao_db: web::Data<Repository<Dao>>,
     path: web::Path<(String, String)>,
@@ -164,7 +164,7 @@ async fn vote_on_proposal(
     }))
 }
 
-#[get("proposal/get_result/{proposal_id}")]
+#[get("proposal/result/{proposal_id}")]
 async fn get_results(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<String>,
@@ -183,7 +183,7 @@ async fn get_results(
     }
 }
 
-#[get("proposal_by_id/{proposal_id}")]
+#[get("proposal/id/{proposal_id}")]
 async fn get_proposal_by_uid(
     proposal_db: web::Data<Repository<Proposal>>,
     dao_db: web::Data<Repository<Dao>>,
@@ -221,7 +221,7 @@ async fn get_proposal_by_uid(
 }
 
 
-#[post("proposal/agg/")]
+#[post("proposal/aggregate")]
 async fn submit_aggregated_snark(
     proposal_db: web::Data<Repository<Proposal>>,
     res: web::Json<ProofFromAggregator>,
@@ -247,7 +247,7 @@ async fn submit_aggregated_snark(
     }
 }
 
-#[get("proposalagg/{proposal_id}")]
+#[get("proposal/aggregate/{proposal_id}")]
 async fn get_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<u16>,
