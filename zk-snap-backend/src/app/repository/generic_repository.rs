@@ -1,4 +1,5 @@
 use crate::app::repository::traits::RepositoryError;
+use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId},
@@ -24,54 +25,99 @@ where
     }
 
     pub async fn create(&self, document: T) -> RepositoryResult<String> {
-        let result = match self.collection.insert_one(document, None).await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(RepositoryError::InternalError(e.to_string()));
-            }
-        };
-        Ok(result.inserted_id.as_object_id().unwrap().to_string())
+        let result = self
+            .collection
+            .insert_one(document, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        result
+            .inserted_id
+            .as_object_id()
+            .map(|id| id.to_hex())
+            .ok_or(RepositoryError::InternalError(
+                "Error parsing ID".to_string(),
+            ))
     }
 
     pub async fn find_all(&self) -> RepositoryResult<Vec<T>> {
-        let mut result = match self.collection.find(None, None).await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(RepositoryError::InternalError(e.to_string()));
-            }
-        };
+        let mut cursor = self
+            .collection
+            .find(None, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
         let mut documents = Vec::new();
-        while let Some(document) = result.next().await {
-            match document {
-                Ok(doc) => documents.push(doc),
-                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
-            }
+        while let Some(doc) = cursor.next().await {
+            documents.push(doc.map_err(|e| RepositoryError::InternalError(e.to_string()))?);
         }
+
         Ok(documents)
     }
 
     pub async fn find_by_id(&self, id: &str) -> RepositoryResult<Option<T>> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id =
+            ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
         let filter = doc! { "_id": obj_id };
-        let result = match self.collection.find_one(filter, None).await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(RepositoryError::InternalError(e.to_string()));
-            }
-        };
-        Ok(result)
+
+        self.collection
+            .find_one(filter, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))
     }
 
-    #[allow(clippy::ok_expect)]
+    pub async fn if_field_exists(&self, field: &str, value: &str) -> RepositoryResult<bool> {
+        let filter = doc! { field: value };
+        self.collection
+            .find_one(filter, None)
+            .await
+            .map(|doc| doc.is_some())
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))
+    }
+
+    pub async fn find_by_field(&self, field: &str, value: Bson) -> RepositoryResult<Option<T>> {
+        let filter = doc! { field: value };
+        self.collection
+            .find_one(filter, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))
+    }
+
+    pub async fn find_all_by_field(&self, field: &str, value: Bson) -> RepositoryResult<Vec<T>> {
+        let filter = doc! { field: value };
+        let mut cursor = self
+            .collection
+            .find(filter, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(document) => results.push(document),
+                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
+            }
+        }
+
+        Ok(results)
+    }
+
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id =
+            ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
         let filter = doc! { "_id": obj_id };
         let result = self
             .collection
             .replace_one(filter, document, None)
             .await
-            .ok()
-            .expect("Id not found in DAOs collection.");
+            .map_err(|e| {
+                RepositoryError::InternalError(
+                    "Id not found in DAO's collection: ".to_string() + &e.to_string(),
+                )
+            })?;
+
         if result.modified_count == 0 {
             Err(RepositoryError::NotFound)
         } else {
@@ -79,16 +125,19 @@ where
         }
     }
 
-    #[allow(clippy::ok_expect)]
     pub async fn delete(&self, id: &str) -> RepositoryResult<()> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+        let obj_id =
+            ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
         let filter = doc! { "_id": obj_id };
         let result = self
             .collection
             .delete_one(filter, None)
             .await
-            .ok()
-            .expect("Error Deleting DAO");
+            .map_err(|e| {
+                RepositoryError::InternalError("Error deleting DAO: ".to_string() + &e.to_string())
+            })?;
+
         if result.deleted_count == 0 {
             Err(RepositoryError::NotFound)
         } else {

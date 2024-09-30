@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4"
+actix-cors = "0.6.0"
 serde = { version = "1.0", features = ["derive"] }
 mongodb = "2.0"
 bson = { version = "2.0", features = ["chrono-0_4"] }
@@ -18,4 +19,17 @@ futures = "0.3"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.11", features = ["json"] }
-tokio = "1.36.0"
+tokio = { version = "1.25.0", features = ["rt", "time"] }
+voter = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran"}
+halo2-base = { git = "https://github.com/aerius-labs/halo2-lib.git", branch = "feat/secp256k1-hash2curve", default-features = false, features = ["halo2-axiom", "display"] }
+hex = "0.4"
+num-bigint = { version = "0.4.4", features = ["serde"] }
+num-traits = "0.2.18"
+pse-poseidon = { git = "https://github.com/aerius-labs/pse-poseidon.git", branch = "feat/stateless-hash" }
+aggregator = { git = "https://github.com/aerius-labs/zksnap-circuits-halo2.git", branch = "feat/state_tran" }
+indexed-merkle-tree-halo2 = { git = "https://github.com/aerius-labs/indexed-merkle-tree-halo2.git" , branch = "feat/aggr-indexed" }
+rand = "0.8"
+lapin = { version = "2.3.1", default-features = false }
+log = "0.4"
+env_logger = "0.9"
+sha3 = "0.10.1"
