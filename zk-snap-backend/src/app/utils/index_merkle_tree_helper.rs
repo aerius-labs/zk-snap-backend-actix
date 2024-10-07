@@ -136,7 +136,6 @@ pub fn update_nullifier_tree<F: BigPrimeField>(
         new_leaf_index,
         new_leaf_proof,
         new_leaf_proof_helper,
-        is_new_leaf_largest,
     );
     (nullifier_tree_preimages, input)
 }

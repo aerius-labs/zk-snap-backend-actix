@@ -4,7 +4,7 @@ use std::{
 };
 
 use aggregator::{
-    state_transition::{StateTransitionCircuit, StateTransitionInput},
+    state_transition::StateTransitionInput,
     wrapper::{
         common::{gen_snark, Snark},
         recursion::RecursionCircuit,
@@ -96,7 +96,7 @@ fn generate_base_witness(
     Ok((params, config, base_instances))
 }
 
-fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snark, Error> {
+fn generate_state_transition_input(input: AggregatorRecursiveDto) -> Result<StateTransitionInput<Fr>, Error> {
     let voter = input.voter;
     let previous = input.previous;
 
@@ -142,38 +142,7 @@ fn generate_state_transition_proof(input: AggregatorRecursiveDto) -> Result<Snar
         nullifier_tree: input.nullifier_tree_input,
         nullifier,
     };
-
-    const K: usize = 15;
-    let params = gen_srs(K as u32);
-    let config = BaseCircuitParams {
-        k: K,
-        num_advice_per_phase: vec![3],
-        num_lookup_advice_per_phase: vec![1, 0, 0],
-        num_fixed: 1,
-        lookup_bits: Some(K - 1),
-        num_instance_columns: 1,
-    };
-
-    let circuit = StateTransitionCircuit::<Fr>::new(config.clone(), state_transition_input);
-
-    let build_dir = env::current_dir()
-        .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?
-        .join("aggregator")
-        .join("build");
-    fs::create_dir_all(&build_dir).unwrap();
-
-    let file = fs::read(build_dir.join("state_transition_pk.bin"))
-        .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
-
-    let pk_reader = &mut BufReader::new(file.as_slice());
-    let pk = ProvingKey::<G1Affine>::read::<BufReader<&[u8]>, BaseCircuitBuilder<Fr>>(
-        pk_reader,
-        halo2_base::halo2_proofs::SerdeFormat::RawBytesUnchecked,
-        config,
-    )
-    .map_err(|error| Error::new(ErrorKind::Other, error.to_string()))?;
-
-    Ok(gen_snark(&params, &pk, circuit))
+    Ok(state_transition_input)
 }
 
 pub async fn generate_base_proof(input: AggregatorBaseDto) -> Result<Snark, Error> {
@@ -184,7 +153,7 @@ pub async fn generate_base_proof(input: AggregatorBaseDto) -> Result<Snark, Erro
 }
 
 pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<Snark, Error> {
-    let state_transition_snark = generate_state_transition_proof(input.clone())?;
+    let state_transition_input = generate_state_transition_input(input.clone())?;
 
     let k: usize = 22;
     let params = gen_srs(k as u32);
@@ -214,13 +183,12 @@ pub async fn generate_recursive_proof(input: AggregatorRecursiveDto) -> Result<S
     .unwrap();
     log::debug!("Read recursion pk");
     let circuit = RecursionCircuit::new(
-        halo2_base::gates::circuit::CircuitBuilderStage::Mock,
         &params,
         input.voter,
-        state_transition_snark,
         input.previous,
         input.num_round as usize,
         config,
+        state_transition_input,
     );
 
     log::debug!("Running mock prover");
