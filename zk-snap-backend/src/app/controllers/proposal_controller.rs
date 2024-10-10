@@ -9,7 +9,7 @@ use validator::Validate;
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
-        dummy_vote_request::VoterDto,
+        // dummy_vote_request::VoterDto,
         proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto},
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
@@ -17,10 +17,15 @@ use crate::app::{
     services::{
         dao_service::get_dao_by_id,
         proposal_service::{
-            create_proposal, get_all_proposals, get_merkle_proof, get_proposal_by_dao_id,
+            create_proposal, get_all_proposals, get_proposal_by_dao_id,
             get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal,
             submit_vote_to_aggregator,
         },
+        // proposal_service::{
+        //     create_proposal, get_all_proposals, get_merkle_proof, get_proposal_by_dao_id,
+        //     get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal,
+        //     submit_vote_to_aggregator,
+        // },
     },
     utils::parse_string_pub_key::{convert_to_public_key_big_int, public_key_to_eth_address},
 };
@@ -58,23 +63,23 @@ async fn create(
     }
 }
 
-#[get("proposal/dao/{dao_id}/{member_pub_key}")]
-async fn get_merkle_proof_from_pub(
-    dao_db: web::Data<Repository<Dao>>,
-    path: web::Path<(String, String)>,
-) -> impl Responder {
-    let (dao_id, member_pub_key) = path.into_inner();
+// #[get("proposal/dao/{dao_id}/{member_pub_key}")]
+// async fn get_merkle_proof_from_pub(
+//     dao_db: web::Data<Repository<Dao>>,
+//     path: web::Path<(String, String)>,
+// ) -> impl Responder {
+//     let (dao_id, member_pub_key) = path.into_inner();
 
-    match get_merkle_proof(dao_db, &dao_id, &member_pub_key).await {
-        Ok(result) => return HttpResponse::Ok().json(result),
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to get merkle proof",
-                "Error": e.to_string()
-            }));
-        }
-    };
-}
+//     match get_merkle_proof(dao_db, &dao_id, &member_pub_key).await {
+//         Ok(result) => return HttpResponse::Ok().json(result),
+//         Err(e) => {
+//             return HttpResponse::BadRequest().json(json!({
+//                 "message": "Failed to get merkle proof",
+//                 "Error": e.to_string()
+//             }));
+//         }
+//     };
+// }
 
 #[get("proposal/vote/{proposal_id}/{voter_pub_key}")]
 async fn vote_on_proposal(
@@ -100,15 +105,18 @@ async fn vote_on_proposal(
         }
     };
 
-    let snark = match dummy_vote_call(user_proof).await {
-        Ok(result) => result,
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to vote on proposal",
-                "Error": e.to_string()
-            }));
-        }
-    };
+    //TODO FIX
+    //User proof here
+
+    // let snark = match dummy_vote_call(user_proof).await {
+    //     Ok(result) => result,
+    //     Err(e) => {
+    //         return HttpResponse::BadRequest().json(json!({
+    //             "message": "Failed to vote on proposal",
+    //             "Error": e.to_string()
+    //         }));
+    //     }
+    // };
 
     // check if is_aggregator_available is true
     // if true, submit vote to aggregator
@@ -392,7 +400,7 @@ async fn send_voter_dto(
 
     HttpResponse::Ok().json(voter_dto)
 }
-
+//TODO FIX
 async fn create_vote_dto(
     proposal_db: web::Data<Repository<Proposal>>,
     doa_db: web::Data<Repository<Dao>>,
@@ -423,25 +431,25 @@ async fn create_vote_dto(
 }
 
 //TODO: Delete this function once after wasm is done
-async fn dummy_vote_call(vote_dto: VoterDto) -> Result<Snark, Error> {
-    let client = reqwest::Client::new();
-    let url = env::var("DUMMY_VOTE_URL").expect("URL is not set");
+// async fn dummy_vote_call(vote_dto: VoterDto) -> Result<Snark, Error> {
+//     let client = reqwest::Client::new();
+//     let url = env::var("DUMMY_VOTE_URL").expect("URL is not set");
 
-    let response = match client.post(url).json(&vote_dto).send().await {
-        Ok(response) => response,
-        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
-    };
+//     let response = match client.post(url).json(&vote_dto).send().await {
+//         Ok(response) => response,
+//         Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+//     };
 
-    if response.status().is_success() {
-        let json: Snark = match response.json().await {
-            Ok(json) => json,
-            Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
-        };
-        Ok(json)
-    } else {
-        Err(Error::new(
-            std::io::ErrorKind::Other,
-            "Failed to vote on proposal",
-        ))
-    }
-}
+//     if response.status().is_success() {
+//         let json: Snark = match response.json().await {
+//             Ok(json) => json,
+//             Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+//         };
+//         Ok(json)
+//     } else {
+//         Err(Error::new(
+//             std::io::ErrorKind::Other,
+//             "Failed to vote on proposal",
+//         ))
+//     }
+// }

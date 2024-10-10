@@ -20,8 +20,8 @@ pub struct CreateDaoDto {
     #[validate(length(min = 3, message = "Logo URL must be between 3 and 200 characters"))]
     pub logo: Option<String>,
 
-    #[validate(length(min = 1))]
-    pub members: Vec<String>,
+    // #[validate(length(min = 1))]
+    // pub members: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -29,5 +29,5 @@ pub struct DaoResponseDto {
     pub name: String,
     pub logo: String,
     pub id: String,
-    pub members_count: usize,
+    // pub members_count: usize,
 }

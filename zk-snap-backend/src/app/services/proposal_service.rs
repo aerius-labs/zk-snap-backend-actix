@@ -32,6 +32,7 @@ use crate::app::{
 use actix_web::web;
 use rand::{thread_rng, Rng};
 
+//TODO FIX
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
     dao_client: web::Data<Repository<Dao>>,
@@ -39,12 +40,12 @@ pub async fn create_proposal(
 ) -> Result<String, Error> {
     let dao = dao_service::get_dao_by_id(dao_client, &proposal.dao_id).await?;
 
-    if !dao.members.contains(&proposal.creator) {
-        return Err(Error::new(
-            ErrorKind::PermissionDenied,
-            "Proposer is not a member of the DAO",
-        ));
-    }
+    // if !dao.members.contains(&proposal.creator) {
+    //     return Err(Error::new(
+    //         ErrorKind::PermissionDenied,
+    //         "Proposer is not a member of the DAO",
+    //     ));
+    // }
 
     match validate_proposal_times(proposal.start_time, proposal.end_time) {
         Ok(_) => (),
@@ -55,8 +56,8 @@ pub async fn create_proposal(
     let encrypted_keys = generate_encrypted_keys(proposal.end_time).await?;
 
     // TODO: Remove this hardcoded value, use root calculation function here for this provided members
-    let members_count = dao.members.len();
-    let (nullifier_root, nullifier_preimages) = generate_nullifier_root(members_count as u64)?;
+    // let members_count = dao.members.len();
+    // let (nullifier_root, nullifier_preimages) = generate_nullifier_root(members_count as u64)?;
 
     // this converts the public key to a big int
     let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
@@ -67,9 +68,11 @@ pub async fn create_proposal(
     // this creates the base proof dto
     let aggregator_request_dto = AggregatorBaseDto {
         pk_enc: public_key,
-        membership_root: dao.members_root,
+        // membership_root: dao.members_root,
+        membership_root: proposal.members_root,
         proposal_id,
-        init_nullifier_root: nullifier_root.clone(),
+        // init_nullifier_root: nullifier_root.clone(),
+        init_nullifier_root: proposal.nullifier,
     };
 
     log::info!("base proof dto {:?}", aggregator_request_dto);
@@ -192,6 +195,8 @@ pub async fn submit_proof_to_proposal(
         }
     }
 }
+
+//TODO FIX
 pub async fn get_merkle_proof(
     doa_db: web::Data<Repository<Dao>>,
     dao_id: &str,
@@ -356,6 +361,7 @@ async fn submit_to_aggregator_from_queue(
             .clone()
             .to_u64_limbs(1, 63)[0];
     }
+    //TODO FIX
     let nullifier_inputs =
         update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
     let recurr_dto = AggregatorRecursiveDto {

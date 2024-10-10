@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::app::entities::proposal_entity::{Proposal, ProposalStatus};
-
+//TODO FIX Complete file
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(

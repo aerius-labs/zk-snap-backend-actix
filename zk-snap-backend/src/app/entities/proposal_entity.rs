@@ -3,7 +3,7 @@ use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use indexed_merkle_tree_halo2::utils::IndexedMerkleTreeLeaf;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
-
+//TODO FIX
 #[derive(Serialize, Deserialize)]
 pub struct Proposal {
     #[serde(rename = "_id")]

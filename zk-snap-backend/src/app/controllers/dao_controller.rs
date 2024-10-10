@@ -48,7 +48,7 @@ async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
                     name: dao.name,
                     id,
                     logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()),
-                    members_count: dao.members.len()
+                    // members_count: dao.members.len()
                 };
                 dao_resp.push(dao_dto);
             }
