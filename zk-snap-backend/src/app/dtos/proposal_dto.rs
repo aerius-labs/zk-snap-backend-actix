@@ -46,10 +46,16 @@ pub struct CreateProposalDto {
     // Assume default values are provided if empty
     #[serde(default = "default_voting_options")]
     pub voting_options: Vec<String>,
+
+    pub membership_root: String,
+    pub membership_proof: String,
+    pub nullifier: String,
+    // pub membership_proof_helper: Vec<Fr>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalResponseDto {
+    pub proposal_id: String,
     pub dao_name: String,
     pub creator: String,
     pub dao_logo: String,

@@ -48,11 +48,11 @@ pub struct Proposal {
     #[serde(rename = "currentAggProof")]
     pub curr_agg_proof: Option<Snark>,
 
-    #[serde(rename = "PreviousNullifierRoot")]
-    pub curr_nullifier_root: Option<Fr>,
+    // #[serde(rename = "PreviousNullifierRoot")]
+    // pub curr_nullifier_root: Option<Fr>,
 
-    #[serde(rename = "PreviousNullifierLeaves")]
-    pub curr_nullifier_preimages: Vec<IndexedMerkleTreeLeaf<Fr>>,
+    // #[serde(rename = "PreviousNullifierLeaves")]
+    // pub curr_nullifier_preimages: Vec<IndexedMerkleTreeLeaf<Fr>>,
 
     #[serde(rename = "IsAggregatorAvailable")]
     pub is_aggregator_available: bool,

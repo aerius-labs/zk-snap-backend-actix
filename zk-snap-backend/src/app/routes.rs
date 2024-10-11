@@ -17,7 +17,7 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) -> &mut web::ServiceConfig {
         proposal_controller::get_proposal,
         proposal_controller::get_proposals,
         proposal_controller::get_all_proposals_by_dao,
-        proposal_controller::send_voter_dto,
+        // proposal_controller::send_voter_dto,
         proposal_controller::get_results,
         proposal_controller::get_proposal_by_uid,
     ))

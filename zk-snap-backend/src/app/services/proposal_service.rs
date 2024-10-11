@@ -6,12 +6,14 @@ use halo2_base::utils::{biguint_to_fe, fe_to_biguint, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
 use num_bigint::BigUint;
+use num_traits::Num;
 use pse_poseidon::Poseidon;
 use reqwest::Client;
 use std::env;
 use std::io::{Error, ErrorKind};
 use tokio::time::{sleep_until, Instant};
 use voter::merkletree::native::MerkleTree;
+use std::error::Error as NError;
 
 use super::dao_service;
 use crate::app::dtos::aggregator_request_dto::{
@@ -31,6 +33,12 @@ use crate::app::{
 };
 use actix_web::web;
 use rand::{thread_rng, Rng};
+
+fn parse_big_uint(s: &str) -> BigUint {
+    let clean_hex = s.trim_start_matches("0x");
+    let big_uint = BigUint::from_str_radix(clean_hex, 16).expect("Invalid hex string");
+    return big_uint;
+}
 
 //TODO FIX
 pub async fn create_proposal(
@@ -69,10 +77,10 @@ pub async fn create_proposal(
     let aggregator_request_dto = AggregatorBaseDto {
         pk_enc: public_key,
         // membership_root: dao.members_root,
-        membership_root: proposal.members_root,
+        membership_root: parse_big_uint(&proposal.membership_root),
         proposal_id,
         // init_nullifier_root: nullifier_root.clone(),
-        init_nullifier_root: proposal.nullifier,
+        init_nullifier_root: parse_big_uint(&proposal.nullifier),
     };
 
     log::info!("base proof dto {:?}", aggregator_request_dto);
@@ -100,8 +108,8 @@ pub async fn create_proposal(
         result: vec![],
         curr_agg_proof: None,
         is_aggregator_available: false,
-        curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
-        curr_nullifier_preimages: nullifier_preimages,
+        // curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
+        // curr_nullifier_preimages: nullifier_preimages,
         user_proof_queue: vec![],
         id: Some(ObjectId::new()),
     };
@@ -166,9 +174,9 @@ pub async fn submit_proof_to_proposal(
             .to_u64_limbs(1, 63)[0];
     }
 
-    if !res.is_base {
-        proposal.curr_nullifier_root = Some(snark.instances[0][37]);
-    }
+    // if !res.is_base {
+    //     proposal.curr_nullifier_root = Some(snark.instances[0][37]);
+    // }
     log::debug!("num_round: {:?}", num_round);
 
     proposal.curr_agg_proof = Some(snark);
@@ -197,25 +205,25 @@ pub async fn submit_proof_to_proposal(
 }
 
 //TODO FIX
-pub async fn get_merkle_proof(
-    doa_db: web::Data<Repository<Dao>>,
-    dao_id: &str,
-    voter_pub_key: &str,
-) -> Result<MerkleProofVoter, Error> {
-    let dao = dao_service::get_dao_by_id(doa_db, dao_id).await?;
-    let members = dao.members;
-    let leaves = from_members_to_leaf(&members)?;
-    let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
-    let merkle_tree = match MerkleTree::new(&mut hasher, leaves) {
-        Ok(tree) => tree,
-        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-    };
-    let cord: ([Fr; 3], [Fr; 3]) = public_key_to_coordinates(voter_pub_key)?;
-    let leaf = preimage_to_leaf(cord);
-    let proof = merkle_tree.get_leaf_proof(&leaf);
-    let proof = MerkleProofVoter::new(proof.0, proof.1);
-    Ok(proof)
-}
+// pub async fn get_merkle_proof(
+//     doa_db: web::Data<Repository<Dao>>,
+//     dao_id: &str,
+//     voter_pub_key: &str,
+// ) -> Result<MerkleProofVoter, Error> {
+//     let dao = dao_service::get_dao_by_id(doa_db, dao_id).await?;
+//     let members = dao.members;
+//     let leaves = from_members_to_leaf(&members)?;
+//     let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
+//     let merkle_tree = match MerkleTree::new(&mut hasher, leaves) {
+//         Ok(tree) => tree,
+//         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+//     };
+//     let cord: ([Fr; 3], [Fr; 3]) = public_key_to_coordinates(voter_pub_key)?;
+//     let leaf = preimage_to_leaf(cord);
+//     let proof = merkle_tree.get_leaf_proof(&leaf);
+//     let proof = MerkleProofVoter::new(proof.0, proof.1);
+//     Ok(proof)
+// }
 
 pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
@@ -361,14 +369,14 @@ async fn submit_to_aggregator_from_queue(
             .clone()
             .to_u64_limbs(1, 63)[0];
     }
-    //TODO FIX
-    let nullifier_inputs =
-        update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
+    // //TODO FIX
+    // let nullifier_inputs =
+    //     update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
     let recurr_dto = AggregatorRecursiveDto {
         num_round: num_round as u16,
         voter: voter_snark.clone(),
         previous: proposal.curr_agg_proof.unwrap(),
-        nullifier_tree_input: nullifier_inputs.1,
+        // nullifier_tree_input: nullifier_inputs.1,
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
@@ -377,9 +385,9 @@ async fn submit_to_aggregator_from_queue(
     }
 
     proposal.curr_agg_proof = None;
-    proposal.curr_nullifier_preimages = nullifier_inputs.0;
+    // proposal.curr_nullifier_preimages = nullifier_inputs.0;
     // proposal.curr_nullifier_root = proof.instances[0][37];
-    proposal.curr_nullifier_root = None;
+    // proposal.curr_nullifier_root = None;
     proposal.is_aggregator_available = false;
     let proposal_id = proposal.id.unwrap().to_string();
     match proposal_db.update(&proposal_id, proposal).await {
@@ -433,13 +441,13 @@ pub async fn submit_vote_to_aggregator(
             .clone()
             .to_u64_limbs(1, 63)[0];
     }
-    let nullifier_inputs =
-        update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
+    // let nullifier_inputs =
+    //     update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
     let recurr_dto = AggregatorRecursiveDto {
         num_round: num_round as u16,
         voter: voter_snark.clone(),
         previous: previous_snark,
-        nullifier_tree_input: nullifier_inputs.1,
+        // nullifier_tree_input: nullifier_inputs.1,
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
@@ -450,9 +458,9 @@ pub async fn submit_vote_to_aggregator(
     }
 
     proposal.curr_agg_proof = None;
-    proposal.curr_nullifier_preimages = nullifier_inputs.0;
+    // proposal.curr_nullifier_preimages = nullifier_inputs.0;
     // proposal.curr_nullifier_root = proof.instances[0][37];
-    proposal.curr_nullifier_root = None;
+    // proposal.curr_nullifier_root = None;
     proposal.is_aggregator_available = false;
 
     match proposal_db.update(proposal_id, proposal).await {

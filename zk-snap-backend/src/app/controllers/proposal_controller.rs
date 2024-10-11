@@ -9,7 +9,7 @@ use validator::Validate;
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
-        // dummy_vote_request::VoterDto,
+        dummy_vote_request::VoterDto,
         proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto},
     },
     entities::{dao_entity::Dao, proposal_entity::Proposal},
@@ -88,25 +88,25 @@ async fn vote_on_proposal(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let (proposal_id, voter_pub_key) = path.into_inner();
-    let user_proof = match create_vote_dto(
-        proposal_db.clone(),
-        doa_db.clone(),
-        &proposal_id,
-        &voter_pub_key,
-    )
-    .await
-    {
-        Ok(result) => result,
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to create vote dto",
-                "Error": e.to_string()
-            }));
-        }
-    };
+    // let user_proof = match create_vote_dto(
+    //     proposal_db.clone(),
+    //     doa_db.clone(),
+    //     &proposal_id,
+    //     &voter_pub_key,
+    // )
+    // .await
+    // {
+    //     Ok(result) => result,
+    //     Err(e) => {
+    //         return HttpResponse::BadRequest().json(json!({
+    //             "message": "Failed to create vote dto",
+    //             "Error": e.to_string()
+    //         }));
+    //     }
+    // };
 
-    //TODO FIX
-    //User proof here
+    // //TODO FIX
+    // //User proof here
 
     // let snark = match dummy_vote_call(user_proof).await {
     //     Ok(result) => result,
@@ -146,26 +146,26 @@ async fn vote_on_proposal(
     }
 
     // Submit vote to aggregator or push user proof in queue
-    log::debug!(
-        "Is aggregator available: {:?}",
-        proposal.is_aggregator_available
-    );
-    if proposal.is_aggregator_available {
-        if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to vote on proposal",
-                "Error": e.to_string()
-            }));
-        }
-    } else {
-        proposal.user_proof_queue.push(snark);
-        if let Err(e) = proposal_db.update(&proposal_id, proposal).await {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to update proposal",
-                "Error": e.to_string()
-            }));
-        }
-    }
+    // log::debug!(
+    //     "Is aggregator available: {:?}",
+    //     proposal.is_aggregator_available
+    // );
+    // if proposal.is_aggregator_available {
+    //     if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
+    //         return HttpResponse::BadRequest().json(json!({
+    //             "message": "Failed to vote on proposal",
+    //             "Error": e.to_string()
+    //         }));
+    //     }
+    // } else {
+    //     proposal.user_proof_queue.push(snark);
+    //     if let Err(e) = proposal_db.update(&proposal_id, proposal).await {
+    //         return HttpResponse::BadRequest().json(json!({
+    //             "message": "Failed to update proposal",
+    //             "Error": e.to_string()
+    //         }));
+    //     }
+    // }
 
     HttpResponse::Ok().json(json!({
         "message": "Voting on proposal",
@@ -300,6 +300,7 @@ async fn get_proposals(
                         }
                     };
                     let dto = ProposalResponseDto {
+                        proposal_id: proposal.id.unwrap().to_string(),
                         dao_name: dao.name,
                         dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
                         creator,
@@ -345,6 +346,7 @@ async fn get_all_proposals_by_dao(
                         }
                     };
                     let dto = ProposalResponseDto {
+                        proposal_id: proposal.id.unwrap().to_string(),
                         dao_name: dao.name,
                         dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
                         creator,
@@ -374,82 +376,82 @@ fn u16_from_fr(fr: Fr) -> u16 {
     u16::from_le_bytes(bytes.try_into().unwrap())
 }
 
-#[get("proposal/send_voter_dto/{proposal_id}/{voter_pub_key}")]
-async fn send_voter_dto(
-    proposal_db: web::Data<Repository<Proposal>>,
-    doa_db: web::Data<Repository<Dao>>,
-    path: web::Path<(String, String)>,
-) -> impl Responder {
-    let (proposal_id, voter_pub_key) = path.into_inner();
-    let voter_dto = match create_vote_dto(
-        proposal_db.clone(),
-        doa_db.clone(),
-        &proposal_id,
-        &voter_pub_key,
-    )
-    .await
-    {
-        Ok(result) => result,
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to create vote dto",
-                "Error": e.to_string()
-            }));
-        }
-    };
-
-    HttpResponse::Ok().json(voter_dto)
-}
-//TODO FIX
-async fn create_vote_dto(
-    proposal_db: web::Data<Repository<Proposal>>,
-    doa_db: web::Data<Repository<Dao>>,
-    proposal_id: &str,
-    voter_pub_key: &str,
-) -> Result<VoterDto, Error> {
-    let proposal = get_proposal_by_id(proposal_db, proposal_id).await?;
-    let dao = get_dao_by_id(doa_db.clone(), &proposal.dao_id).await?;
-
-    let merkle_root = biguint_to_fe::<Fr>(&dao.members_root);
-    let membership_proof_and_helper: proposal_dto::MerkleProofVoter =
-        get_merkle_proof(doa_db.clone(), &proposal.dao_id, voter_pub_key).await?;
-    let membership_proof = membership_proof_and_helper.proof;
-    let helper = membership_proof_and_helper.helper;
-    let pk_enc = convert_to_public_key_big_int(&proposal.encrypted_keys.pub_key)?;
-
-    let vote_dto = VoterDto {
-        proposal_id: proposal.proposal_id,
-        pk_enc,
-        membership_root: merkle_root,
-        membership_proof,
-        membership_proof_helper: helper,
-    };
-
-    log::info!("vote dto{:?}", vote_dto);
-
-    Ok(vote_dto)
-}
-
-//TODO: Delete this function once after wasm is done
-// async fn dummy_vote_call(vote_dto: VoterDto) -> Result<Snark, Error> {
-//     let client = reqwest::Client::new();
-//     let url = env::var("DUMMY_VOTE_URL").expect("URL is not set");
-
-//     let response = match client.post(url).json(&vote_dto).send().await {
-//         Ok(response) => response,
-//         Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+// #[get("proposal/send_voter_dto/{proposal_id}/{voter_pub_key}")]
+// async fn send_voter_dto(
+//     proposal_db: web::Data<Repository<Proposal>>,
+//     doa_db: web::Data<Repository<Dao>>,
+//     path: web::Path<(String, String)>,
+// ) -> impl Responder {
+//     let (proposal_id, voter_pub_key) = path.into_inner();
+//     let voter_dto = match create_vote_dto(
+//         proposal_db.clone(),
+//         doa_db.clone(),
+//         &proposal_id,
+//         &voter_pub_key,
+//     )
+//     .await
+//     {
+//         Ok(result) => result,
+//         Err(e) => {
+//             return HttpResponse::BadRequest().json(json!({
+//                 "message": "Failed to create vote dto",
+//                 "Error": e.to_string()
+//             }));
+//         }
 //     };
 
-//     if response.status().is_success() {
-//         let json: Snark = match response.json().await {
-//             Ok(json) => json,
-//             Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
-//         };
-//         Ok(json)
-//     } else {
-//         Err(Error::new(
-//             std::io::ErrorKind::Other,
-//             "Failed to vote on proposal",
-//         ))
-//     }
+//     HttpResponse::Ok().json(voter_dto)
 // }
+//TODO FIX
+// async fn create_vote_dto(
+//     proposal_db: web::Data<Repository<Proposal>>,
+//     doa_db: web::Data<Repository<Dao>>,
+//     proposal_id: &str,
+//     voter_pub_key: &str,
+// ) -> Result<VoterDto, Error> {
+//     let proposal = get_proposal_by_id(proposal_db, proposal_id).await?;
+//     let dao = get_dao_by_id(doa_db.clone(), &proposal.dao_id).await?;
+
+//     let merkle_root = biguint_to_fe::<Fr>(&dao.members_root);
+//     let membership_proof_and_helper: proposal_dto::MerkleProofVoter =
+//         get_merkle_proof(doa_db.clone(), &proposal.dao_id, voter_pub_key).await?;
+//     let membership_proof = membership_proof_and_helper.proof;
+//     let helper = membership_proof_and_helper.helper;
+//     let pk_enc = convert_to_public_key_big_int(&proposal.encrypted_keys.pub_key)?;
+
+//     let vote_dto = VoterDto {
+//         proposal_id: proposal.proposal_id,
+//         pk_enc,
+//         membership_root: merkle_root,
+//         membership_proof,
+//         membership_proof_helper: helper,
+//     };
+
+//     log::info!("vote dto{:?}", vote_dto);
+
+//     Ok(vote_dto)
+// }
+
+//TODO: Delete this function once after wasm is done
+async fn dummy_vote_call(vote_dto: VoterDto) -> Result<Snark, Error> {
+    let client = reqwest::Client::new();
+    let url = env::var("DUMMY_VOTE_URL").expect("URL is not set");
+
+    let response = match client.post(url).json(&vote_dto).send().await {
+        Ok(response) => response,
+        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+    };
+
+    if response.status().is_success() {
+        let json: Snark = match response.json().await {
+            Ok(json) => json,
+            Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
+        };
+        Ok(json)
+    } else {
+        Err(Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to vote on proposal",
+        ))
+    }
+}

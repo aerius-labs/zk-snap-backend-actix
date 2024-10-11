@@ -20,7 +20,7 @@ pub struct AggregatorRecursiveDto {
     pub num_round: u16,
     pub voter: Snark,
     pub previous: Snark,
-    pub nullifier_tree_input: IndexedMerkleTreeInput<Fr>,
+    // pub nullifier_tree_input: IndexedMerkleTreeInput<Fr>,
 }
 
 #[derive(Serialize, Deserialize)]
