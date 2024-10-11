@@ -14,7 +14,8 @@ use std::io::{Error, ErrorKind};
 use tokio::time::{sleep_until, Instant};
 use voter::merkletree::native::MerkleTree;
 use std::error::Error as NError;
-
+use std::sync::Arc;
+use tokio::spawn;
 use super::dao_service;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
@@ -90,10 +91,14 @@ pub async fn create_proposal(
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     };
 
+    let start_time = proposal.start_time;
+    let end_time = proposal.end_time;
     let id = ObjectId::new();
-
-    schedule_event(&id.to_string(), db.clone(), proposal.start_time);
-
+    let db_clone = db.clone();
+    spawn(async move {
+       schedule_event(&id.to_string(), db_clone, start_time, end_time).await;
+    });
+    
     let proposal = Proposal {
         creator: proposal.creator,
         title: proposal.title,
@@ -111,7 +116,7 @@ pub async fn create_proposal(
         // curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
         // curr_nullifier_preimages: nullifier_preimages,
         user_proof_queue: vec![],
-        id: Some(ObjectId::new()),
+        id: Some(id),
     };
 
     match db.create(proposal).await {
@@ -510,6 +515,7 @@ async fn schedule_event(
     proposal_id: &str,
     db: web::Data<Repository<Proposal>>,
     start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
 ) {
     let now = Utc::now();
     if start_time > now {
@@ -517,10 +523,19 @@ async fn schedule_event(
         let sleep_time = Instant::now() + wait_duration;
         sleep_until(sleep_time).await;
     }
+    if let Err(e) = handle_event_start(&proposal_id, db.clone()).await {
+        log::error!("Failed to mark proposal as active: {}", e);
+        return;
+    }
+    let end_duration = (end_time - Utc::now()).to_std().unwrap_or_default();
 
-    match handle_event_start(proposal_id, db).await {
-        Ok(_) => (),
-        Err(e) => println!("Failed to handle event end: {}", e),
+    // Wait until end time
+    let end_sleep_time = Instant::now() + end_duration;
+
+    sleep_until(end_sleep_time).await;
+
+    if let Err(e) = handle_event_end(&proposal_id, db).await {
+        log::error!("Failed to mark proposal as inactive: {}", e);
     }
 }
 
@@ -528,19 +543,49 @@ async fn handle_event_start(
     proposal_id: &str,
     db: web::Data<Repository<Proposal>>,
 ) -> Result<(), Error> {
-    let proposal = db.find_by_id(proposal_id).await.unwrap();
-    let mut proposal = match proposal {
-        Some(proposal) => proposal,
-        None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
-    };
-
-    proposal.status = ProposalStatus::Active;
-
-    match db.update(proposal_id, proposal).await {
-        Ok(_) => Ok(()),
-        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
-    }
+    update_proposal_status(proposal_id, db, ProposalStatus::Active).await
 }
+
+async fn handle_event_end(
+    proposal_id: &str,
+    db: web::Data<Repository<Proposal>>,
+) -> Result<(), Error> {
+    update_proposal_status(proposal_id, db, ProposalStatus::Inactive).await
+}
+
+async fn update_proposal_status(
+    proposal_id: &str,
+    db: web::Data<Repository<Proposal>>,
+    status: ProposalStatus,
+) -> Result<(), Error> {
+    let proposal = db.find_by_id(proposal_id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let mut proposal = proposal.ok_or_else(|| Error::new(ErrorKind::NotFound, "Proposal not found"))?;
+
+    proposal.status = status;
+
+    db.update(proposal_id, proposal).await
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+
+    Ok(())
+}
+
+// async fn handle_event_start(
+//     proposal_id: &str,
+//     db: web::Data<Repository<Proposal>>,
+// ) -> Result<(), Error> {
+//     let proposal = db.find_by_id(proposal_id).await.unwrap();
+//     let mut proposal = match proposal {
+//         Some(proposal) => proposal,
+//         None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+//     };
+
+//     proposal.status = ProposalStatus::Active;
+
+//     match db.update(proposal_id, proposal).await {
+//         Ok(_) => Ok(()),
+//         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
+//     }
+// }
 
 async fn decrypt_keys(pvt: String) -> Result<String, Error> {
     dotenv().ok();
