@@ -71,8 +71,8 @@ pub struct ProposalByIdResponseDto {
     pub creator_address: String,
     pub proposal_id: String,
     pub proposal_name: String,
+    pub proposal_status: ProposalStatus,
     pub proposal_description: String,
-    pub proposal_tile: String,
     pub start_time: chrono::DateTime<Utc>,
     pub end_time: chrono::DateTime<Utc>,
     

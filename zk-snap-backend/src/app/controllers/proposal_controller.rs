@@ -218,9 +218,9 @@ async fn get_proposal_by_uid(
         dao_name: dao.name,
         creator_address,
         proposal_id,
+        proposal_status: proposal.status,
         proposal_description: proposal.description,
         proposal_name: proposal.title.clone(), // Assuming this should match the `proposal_name` field
-        proposal_tile: proposal.title,
         start_time: proposal.start_time,
         end_time: proposal.end_time,
     };
