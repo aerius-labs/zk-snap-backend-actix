@@ -46,23 +46,37 @@ async fn create(
         }));
     }
 
-    // Create proposal
-    match create_proposal(db, dao_client, proposal).await {
-        Ok(result) => {
-            return HttpResponse::Created().json(json!({
-                "message": "Creating proposal",
-                "ObjectId": result
-            }));
-        }
-        Err(e) => {
+        let now = Utc::now();
+        if proposal.start_time <= now {
             return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to create proposal",
-                "Error": e.to_string()
+                "message": "Start time must be in the future",
+            }));
+        } else if proposal.end_time <= now {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "End time must be in the future",
+            }));
+        }else if proposal.end_time <= proposal.start_time {
+            return HttpResponse::BadRequest().json(json!({
+                "message": "End time must be after start time",
             }));
         }
-    }
-}
 
+        // Create proposal
+        match create_proposal(db, dao_client, proposal).await {
+            Ok(result) => {
+                return HttpResponse::Created().json(json!({
+                    "message": "Creating proposal",
+                    "ObjectId": result
+                }));
+            }
+            Err(e) => {
+                return HttpResponse::BadRequest().json(json!({
+                    "message": "Failed to create proposal",
+                    "Error": e.to_string()
+                }));
+            }
+        }
+}
 // #[get("proposal/dao/{dao_id}/{member_pub_key}")]
 // async fn get_merkle_proof_from_pub(
 //     dao_db: web::Data<Repository<Dao>>,
