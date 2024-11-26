@@ -3,8 +3,7 @@ use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::app::entities::proposal_entity::{Proposal, ProposalStatus};
-//TODO FIX Complete file
+use crate::app::entities::proposal_entity::ProposalStatus;
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(
@@ -43,14 +42,12 @@ pub struct CreateProposalDto {
 
     pub end_time: chrono::DateTime<Utc>,
 
-    // Assume default values are provided if empty
     #[serde(default = "default_voting_options")]
     pub voting_options: Vec<String>,
 
     pub membership_root: String,
     pub membership_proof: String,
     pub nullifier: String,
-    // pub membership_proof_helper: Vec<Fr>,
 }
 
 #[derive(Serialize, Deserialize)]

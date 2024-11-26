@@ -5,7 +5,6 @@ use pse_poseidon::Poseidon;
 use voter::merkletree::native::MerkleTree;
 
 pub fn generate_default_leafs<F: BigPrimeField>(num_leaf: usize) -> Vec<IndexedMerkleTreeLeaf<F>> {
-    //num_leaf should be power of 2
     assert!(num_leaf != 0 && (num_leaf & (num_leaf - 1)) == 0);
     (0..num_leaf)
         .map(|_| IndexedMerkleTreeLeaf::<F> {

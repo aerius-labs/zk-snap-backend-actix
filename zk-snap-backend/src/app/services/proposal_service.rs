@@ -2,7 +2,7 @@ use aggregator::wrapper::common::Snark;
 use chrono::{DateTime, Utc};
 use dotenv::dotenv;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
-use halo2_base::utils::{biguint_to_fe, fe_to_biguint, ScalarField};
+use halo2_base::utils::{fe_to_biguint, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
 use num_bigint::BigUint;
@@ -12,25 +12,17 @@ use reqwest::Client;
 use std::env;
 use std::io::{Error, ErrorKind};
 use tokio::time::{sleep_until, Instant};
-use voter::merkletree::native::MerkleTree;
-use std::error::Error as NError;
-use std::sync::Arc;
 use tokio::spawn;
-use super::dao_service;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::{MerkleProofVoter, VoteResultDto};
+use crate::app::dtos::proposal_dto::VoteResultDto;
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
-use crate::app::utils::index_merkle_tree_helper::update_nullifier_tree;
-use crate::app::utils::merkle_tree_helper::public_key_to_coordinates;
-use crate::app::utils::nullifier_helper::generate_nullifier_root;
 use crate::app::utils::parse_string_pub_key::convert_to_public_key_big_int;
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
     repository::generic_repository::Repository,
-    utils::merkle_tree_helper::{from_members_to_leaf, preimage_to_leaf},
 };
 use actix_web::web;
 use rand::{thread_rng, Rng};
@@ -41,32 +33,16 @@ fn parse_big_uint(s: &str) -> BigUint {
     return big_uint;
 }
 
-//TODO FIX
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
     dao_client: web::Data<Repository<Dao>>,
     proposal: CreateProposalDto,
 ) -> Result<String, Error> {
-    let dao = dao_service::get_dao_by_id(dao_client, &proposal.dao_id).await?;
-
-    // if !dao.members.contains(&proposal.creator) {
-    //     return Err(Error::new(
-    //         ErrorKind::PermissionDenied,
-    //         "Proposer is not a member of the DAO",
-    //     ));
-    // }
-
     match validate_proposal_times(proposal.start_time, proposal.end_time) {
         Ok(_) => (),
         Err(e) => return Err(e),
     };
-
-    // this generates the encrypted keys
     let encrypted_keys = generate_encrypted_keys(proposal.end_time).await?;
-
-    // TODO: Remove this hardcoded value, use root calculation function here for this provided members
-    // let members_count = dao.members.len();
-    // let (nullifier_root, nullifier_preimages) = generate_nullifier_root(members_count as u64)?;
 
     // this converts the public key to a big int
     let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
@@ -77,10 +53,8 @@ pub async fn create_proposal(
     // this creates the base proof dto
     let aggregator_request_dto = AggregatorBaseDto {
         pk_enc: public_key,
-        // membership_root: dao.members_root,
         membership_root: parse_big_uint(&proposal.membership_root),
         proposal_id,
-        // init_nullifier_root: nullifier_root.clone(),
         init_nullifier_root: parse_big_uint(&proposal.nullifier),
     };
 
@@ -113,8 +87,6 @@ pub async fn create_proposal(
         result: vec![],
         curr_agg_proof: None,
         is_aggregator_available: false,
-        // curr_nullifier_root: Some(biguint_to_fe(&nullifier_root)),
-        // curr_nullifier_preimages: nullifier_preimages,
         user_proof_queue: vec![],
         id: Some(id),
     };
@@ -171,22 +143,16 @@ pub async fn submit_proof_to_proposal(
             "Invalid previous snark proof",
         ));
     } else {
-        // TODO: remove last and unwrap and use round index
         num_round = snark.instances[0]
             .last()
             .unwrap()
             .clone()
             .to_u64_limbs(1, 63)[0];
     }
-
-    // if !res.is_base {
-    //     proposal.curr_nullifier_root = Some(snark.instances[0][37]);
-    // }
     log::debug!("num_round: {:?}", num_round);
 
     proposal.curr_agg_proof = Some(snark);
 
-    // TODO: check the voter queue if empty than do nothing else consume one voter proof and set is_aggregator_available to false
     let user_proof_queue = proposal.user_proof_queue.clone();
     if user_proof_queue.is_empty() {
         proposal.is_aggregator_available = true;
@@ -208,27 +174,6 @@ pub async fn submit_proof_to_proposal(
         }
     }
 }
-
-//TODO FIX
-// pub async fn get_merkle_proof(
-//     doa_db: web::Data<Repository<Dao>>,
-//     dao_id: &str,
-//     voter_pub_key: &str,
-// ) -> Result<MerkleProofVoter, Error> {
-//     let dao = dao_service::get_dao_by_id(doa_db, dao_id).await?;
-//     let members = dao.members;
-//     let leaves = from_members_to_leaf(&members)?;
-//     let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
-//     let merkle_tree = match MerkleTree::new(&mut hasher, leaves) {
-//         Ok(tree) => tree,
-//         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-//     };
-//     let cord: ([Fr; 3], [Fr; 3]) = public_key_to_coordinates(voter_pub_key)?;
-//     let leaf = preimage_to_leaf(cord);
-//     let proof = merkle_tree.get_leaf_proof(&leaf);
-//     let proof = MerkleProofVoter::new(proof.0, proof.1);
-//     Ok(proof)
-// }
 
 pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
@@ -353,10 +298,6 @@ async fn submit_to_aggregator_from_queue(
     let voter_snark = user_proof_queue.remove(0);
     proposal.user_proof_queue = user_proof_queue;
 
-    let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
-    hasher.update(voter_snark.instances[0][24..28].as_ref());
-    let nullifier = hasher.squeeze_and_reset();
-
     let mut num_round: u64 = 0;
 
     if proposal.curr_agg_proof.clone().unwrap().instances[0]
@@ -374,14 +315,11 @@ async fn submit_to_aggregator_from_queue(
             .clone()
             .to_u64_limbs(1, 63)[0];
     }
-    // //TODO FIX
-    // let nullifier_inputs =
-    //     update_nullifier_tree(proposal.curr_nullifier_preimages, nullifier, num_round + 1);
+
     let recurr_dto = AggregatorRecursiveDto {
         num_round: num_round as u16,
         voter: voter_snark.clone(),
         previous: proposal.curr_agg_proof.unwrap(),
-        // nullifier_tree_input: nullifier_inputs.1,
     };
 
     match call_submit_to_aggregator(recurr_dto).await {
@@ -390,9 +328,6 @@ async fn submit_to_aggregator_from_queue(
     }
 
     proposal.curr_agg_proof = None;
-    // proposal.curr_nullifier_preimages = nullifier_inputs.0;
-    // proposal.curr_nullifier_root = proof.instances[0][37];
-    // proposal.curr_nullifier_root = None;
     proposal.is_aggregator_available = false;
     let proposal_id = proposal.id.unwrap().to_string();
     match proposal_db.update(&proposal_id, proposal).await {
@@ -428,9 +363,6 @@ pub async fn submit_vote_to_aggregator(
             ))
         }
     };
-    let mut hasher = Poseidon::<Fr, 3, 2>::new(8, 57);
-    hasher.update(voter_snark.instances[0][24..28].as_ref());
-    let nullifier = hasher.squeeze_and_reset();
 
     let mut num_round: u64 = 0;
 
@@ -568,24 +500,6 @@ async fn update_proposal_status(
 
     Ok(())
 }
-
-// async fn handle_event_start(
-//     proposal_id: &str,
-//     db: web::Data<Repository<Proposal>>,
-// ) -> Result<(), Error> {
-//     let proposal = db.find_by_id(proposal_id).await.unwrap();
-//     let mut proposal = match proposal {
-//         Some(proposal) => proposal,
-//         None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
-//     };
-
-//     proposal.status = ProposalStatus::Active;
-
-//     match db.update(proposal_id, proposal).await {
-//         Ok(_) => Ok(()),
-//         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
-//     }
-// }
 
 async fn decrypt_keys(pvt: String) -> Result<String, Error> {
     dotenv().ok();

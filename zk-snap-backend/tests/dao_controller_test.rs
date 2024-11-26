@@ -31,8 +31,7 @@ mod tests {
         let dao = CreateDaoDto {
             name: "".to_string(),
             description: "DAO description".to_string(),
-            logo: Some("DAO logo".to_string()),
-            members: vec!["member1".to_string(), "member2".to_string()],
+            logo: Some("DAO logo".to_string())
         };
 
         let req = test::TestRequest::post()
@@ -69,7 +68,6 @@ mod tests {
             name: "test Dao".to_string(),
             description: "DAO description".to_string(),
             logo: Some("DAO logo".to_string()),
-            members: vec!["member1".to_string(), "member2".to_string()],
         };
 
         let post_req = test::TestRequest::post()
