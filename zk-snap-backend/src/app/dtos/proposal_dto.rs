@@ -1,9 +1,11 @@
+use std::any;
+
 use chrono::Utc;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::app::entities::proposal_entity::ProposalStatus;
+use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(
@@ -60,6 +62,7 @@ pub struct ProposalResponseDto {
     pub status: ProposalStatus,
     pub start_time: chrono::DateTime<Utc>,
     pub end_time: chrono::DateTime<Utc>,
+    pub encrypted_keys: EncryptedKeys
 }
 
 #[derive(Serialize, Deserialize)]
@@ -72,7 +75,7 @@ pub struct ProposalByIdResponseDto {
     pub proposal_description: String,
     pub start_time: chrono::DateTime<Utc>,
     pub end_time: chrono::DateTime<Utc>,
-    
+    pub encrypted_keys: EncryptedKeys
 }
 
 #[derive(Serialize, Deserialize)]

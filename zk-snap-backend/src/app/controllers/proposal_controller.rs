@@ -177,6 +177,7 @@ async fn get_proposal_by_uid(
         proposal_name: proposal.title.clone(), // Assuming this should match the `proposal_name` field
         start_time: proposal.start_time,
         end_time: proposal.end_time,
+        encrypted_keys: proposal.encrypted_keys.clone()
     };
 
     HttpResponse::Ok().json(resp)
@@ -262,6 +263,7 @@ async fn get_proposals(
                         status: proposal.status,
                         start_time: proposal.start_time,
                         end_time: proposal.end_time,
+                        encrypted_keys: proposal.encrypted_keys.clone()
                     };
                     proposals_res.push(dto);
                 }
@@ -308,6 +310,7 @@ async fn get_all_proposals_by_dao(
                         status: proposal.status,
                         start_time: proposal.start_time,
                         end_time: proposal.end_time,
+                        encrypted_keys: proposal.encrypted_keys.clone()
                     };
                     proposals_res.push(dto);
                 }
