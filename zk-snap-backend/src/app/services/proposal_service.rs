@@ -87,6 +87,7 @@ pub async fn create_proposal(
         result: vec![],
         curr_agg_proof: None,
         is_aggregator_available: false,
+        user_proof_array: vec![],
         user_proof_queue: vec![],
         id: Some(id),
     };
@@ -204,37 +205,46 @@ pub async fn get_result_on_proposal(
             if proposal.end_time > Utc::now() {
                 return Err(Error::new(ErrorKind::Other, "wait till end time"));
             } else {
-                if proposal.user_proof_queue.is_empty() && proposal.is_aggregator_available {
-                    proposal.status = ProposalStatus::Completed;
+                proposal.status = ProposalStatus::Completed;
 
-                    proposal.encrypted_keys.pvt_key =
-                        decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
-                    let snark = proposal
-                        .curr_agg_proof
-                        .clone()
-                        .ok_or_else(|| Error::new(ErrorKind::Other, "No votes found"))?;
-                    let vote = snark.instances[0][17..37]
+                proposal.encrypted_keys.pvt_key =
+                    decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
+
+                let snark = proposal.user_proof_array.clone();
+
+                let mut election_result: Vec<u64> = vec![0,0,0];
+
+                for user_proof in snark.iter() {
+                    let instance = user_proof.instances.clone();
+                    let vote = instance[4..16]
                         .chunks(4)
                         .map(|v| limbs_to_biguint(v.to_vec()))
                         .collect::<Vec<BigUint>>();
-                    let vote_in_string =
+
+                        let vote_in_string =
                         vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
-                    let result_dto = VoteResultDto {
-                        pvt: proposal.encrypted_keys.pvt_key.clone(),
-                        vote: vote_in_string,
-                    };
-                    let election_result = call_reveal_result(result_dto).await?;
-                    proposal.result = election_result.clone();
-                    db.update(id, proposal)
-                        .await
-                        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-                    Ok(election_result)
-                } else {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        "wait till all votes are processed",
-                    ));
+
+                        let result_dto = VoteResultDto {
+                            pvt: proposal.encrypted_keys.pvt_key.clone(),
+                            vote: vote_in_string,
+                        };
+
+                        let result_of_string = call_reveal_result(result_dto).await?;
+                        let result = result_of_string.iter().map(|v| v.parse::<u64>().unwrap()).collect::<Vec<u64>>();
+
+                        election_result[0] += result[0];
+                        election_result[1] += result[1];
+                        election_result[2] += result[2];    
                 }
+                
+                let result = election_result.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+                proposal.result = result.clone();
+
+                db.update(id, proposal)
+                    .await
+                    .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+
+                return Ok(result);
             }
         }
     }

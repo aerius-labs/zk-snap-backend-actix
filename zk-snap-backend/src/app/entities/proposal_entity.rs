@@ -1,6 +1,34 @@
 use aggregator::wrapper::common::Snark;
+use halo2_base::{halo2_proofs::halo2curves::bn256::Fr, utils::ScalarField};
 use mongodb::bson::oid::ObjectId;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
+
+use crate::app::dtos::proposal_dto::UserProofDto;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserProof {
+    #[serde(rename = "instances")]
+    pub instances: Vec<Fr>,
+    #[serde(rename = "proof")]
+    pub proof: Vec<u8>,
+}
+
+impl UserProof {
+    pub fn from_dto(dto: UserProofDto) -> Self {
+        UserProof {
+            instances: dto.instances.iter().map(|hex_str| {
+                let hex_str = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+                let biguint = BigUint::parse_bytes(hex_str.as_bytes(), 16)
+                    .unwrap_or_else(|| panic!("Failed to parse hex string: {}", hex_str));
+                Fr::from_bytes_le(
+                    &biguint.to_bytes_le()
+                )
+            }).collect(),
+            proof: dto.proof.clone(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Proposal {
@@ -48,6 +76,9 @@ pub struct Proposal {
     
     #[serde(rename = "IsAggregatorAvailable")]
     pub is_aggregator_available: bool,
+
+    #[serde(rename = "userProofArray")]
+    pub user_proof_array: Vec<UserProof>,
 
     #[serde(rename = "userProofQueue")]
     pub user_proof_queue: Vec<Snark>,

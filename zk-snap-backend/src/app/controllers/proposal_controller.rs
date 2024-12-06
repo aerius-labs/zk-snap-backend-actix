@@ -7,9 +7,9 @@ use validator::Validate;
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
-        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto},
+        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto, UserProofDto},
     },
-    entities::{dao_entity::Dao, proposal_entity::Proposal},
+    entities::{dao_entity::Dao, proposal_entity::{Proposal, UserProof}},
     repository::generic_repository::Repository,
     services::proposal_service::{
             create_proposal, get_all_proposals, get_proposal_by_dao_id,
@@ -65,13 +65,15 @@ async fn create(
     }
 }
 
-#[get("proposal/vote/{proposal_id}/{voter_pub_key}")]
+#[get("proposal/vote/{proposal_id}/")]
 async fn vote_on_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
     doa_db: web::Data<Repository<Dao>>,
-    path: web::Path<(String, String)>,
+    path: web::Path<String>,
+    vote: web::Json<UserProofDto>
 ) -> impl Responder {
-    let (proposal_id, voter_pub_key) = path.into_inner();
+    let proposal_id = path.into_inner();
+    let vote = vote.into_inner();
     // check if is_aggregator_available is true
     // if true, submit vote to aggregator
     // else, push user proof in a queue
@@ -99,27 +101,16 @@ async fn vote_on_proposal(
         }));
     }
 
-    // Submit vote to aggregator or push user proof in queue
-    // log::debug!(
-    //     "Is aggregator available: {:?}",
-    //     proposal.is_aggregator_available
-    // );
-    // if proposal.is_aggregator_available {
-    //     if let Err(e) = submit_vote_to_aggregator(&proposal_id, snark, proposal_db).await {
-    //         return HttpResponse::BadRequest().json(json!({
-    //             "message": "Failed to vote on proposal",
-    //             "Error": e.to_string()
-    //         }));
-    //     }
-    // } else {
-    //     proposal.user_proof_queue.push(snark);
-    //     if let Err(e) = proposal_db.update(&proposal_id, proposal).await {
-    //         return HttpResponse::BadRequest().json(json!({
-    //             "message": "Failed to update proposal",
-    //             "Error": e.to_string()
-    //         }));
-    //     }
-    // }
+    // Store the vote in the proposal
+    let user_proof = UserProof::from_dto(vote);
+    proposal.user_proof_array.push(user_proof);
+
+    if let Err(e) = proposal_db.update(&proposal_id, proposal).await {
+        return HttpResponse::BadRequest().json(json!({
+            "message": "Failed to update proposal",
+            "Error": e.to_string()
+        }));
+    }
 
     HttpResponse::Ok().json(json!({
         "message": "Voting on proposal",

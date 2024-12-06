@@ -52,6 +52,12 @@ pub struct CreateProposalDto {
     pub nullifier: String,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct UserProofDto {
+    pub instances: Vec<String>,
+    pub proof: Vec<u8>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ProposalResponseDto {
     pub proposal_id: String,
