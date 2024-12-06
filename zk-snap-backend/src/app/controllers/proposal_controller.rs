@@ -65,10 +65,9 @@ async fn create(
     }
 }
 
-#[get("proposal/vote/{proposal_id}/")]
+#[post("proposal/vote/{proposal_id}/")]
 async fn vote_on_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
-    doa_db: web::Data<Repository<Dao>>,
     path: web::Path<String>,
     vote: web::Json<UserProofDto>
 ) -> impl Responder {
@@ -77,6 +76,7 @@ async fn vote_on_proposal(
     // check if is_aggregator_available is true
     // if true, submit vote to aggregator
     // else, push user proof in a queue
+    
     let mut proposal = match get_proposal_by_id(proposal_db.clone(), &proposal_id).await {
         Ok(result) => result,
         Err(e) => {
