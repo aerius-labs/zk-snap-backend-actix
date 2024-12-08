@@ -9,7 +9,7 @@ use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use serde_json::json;
 use validator::Validate;
 
-#[post("dao/")]
+#[post("/dao")]
 async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) -> impl Responder {
     let dao = dao.into_inner();
 
@@ -36,7 +36,7 @@ async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) ->
     }))
 }
 
-#[get("dao/")]
+#[get("/dao")]
 async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
     let daos = get_all_daos(db).await;
     match daos {
@@ -62,7 +62,7 @@ async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
     }
 }
 
-#[get("dao/{id}")]
+#[get("/dao/{id}")]
 async fn find_by_id(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl Responder {
     let id = path.into_inner();
     if id.is_empty() {
@@ -81,7 +81,7 @@ async fn find_by_id(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl 
     HttpResponse::Ok().json(dao)
 }
 
-#[delete("dao/{id}")]
+#[delete("/dao/{id}")]
 async fn delete_dao(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl Responder {
     let id = path.into_inner();
     if id.is_empty() {
@@ -102,7 +102,7 @@ async fn delete_dao(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl 
     }))
 }
 
-#[put("dao/{id}")]
+#[put("/dao/{id}")]
 async fn update_dao(
     db: web::Data<Repository<Dao>>,
     path: Path<String>,

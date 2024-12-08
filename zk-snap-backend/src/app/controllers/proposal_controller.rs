@@ -19,7 +19,7 @@ use crate::app::{
     utils::parse_string_pub_key::public_key_to_eth_address,
 };
 
-#[post("proposal/")]
+#[post("/proposal")]
 async fn create(
     db: web::Data<Repository<Proposal>>,
     dao_client: web::Data<Repository<Dao>>,
@@ -65,7 +65,7 @@ async fn create(
     }
 }
 
-#[post("proposal/vote/{proposal_id}/")]
+#[post("/proposal/vote/{proposal_id}")]
 async fn vote_on_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<String>,
@@ -117,7 +117,7 @@ async fn vote_on_proposal(
     }))
 }
 
-#[get("proposal/result/{proposal_id}")]
+#[get("/proposal/result/{proposal_id}")]
 async fn get_results(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<String>,
@@ -136,7 +136,7 @@ async fn get_results(
     }
 }
 
-#[get("proposal/id/{proposal_id}")]
+#[get("/proposal/id/{proposal_id}")]
 async fn get_proposal_by_uid(
     proposal_db: web::Data<Repository<Proposal>>,
     dao_db: web::Data<Repository<Dao>>,
@@ -175,7 +175,7 @@ async fn get_proposal_by_uid(
 }
 
 
-#[post("proposal/aggregate")]
+#[post("/proposal/aggregate")]
 async fn submit_aggregated_snark(
     proposal_db: web::Data<Repository<Proposal>>,
     res: web::Json<ProofFromAggregator>,
@@ -201,7 +201,7 @@ async fn submit_aggregated_snark(
     }
 }
 
-#[get("proposal/aggregate/{proposal_id}")]
+#[get("/proposal/aggregate/{proposal_id}")]
 async fn get_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<u16>,
@@ -225,7 +225,7 @@ async fn get_proposal(
     }
 }
 
-#[get("proposal/all_proposals")]
+#[get("/proposal/all_proposals")]
 async fn get_proposals(
     db: web::Data<Repository<Proposal>>,
     dao_db: web::Data<Repository<Dao>>,
@@ -270,7 +270,7 @@ async fn get_proposals(
     }
 }
 
-#[get("proposals_all_by_dao/{dao_id}")]
+#[get("/proposals_all_by_dao/{dao_id}")]
 async fn get_all_proposals_by_dao(
     db: web::Data<Repository<Proposal>>,
     dao_db: web::Data<Repository<Dao>>,

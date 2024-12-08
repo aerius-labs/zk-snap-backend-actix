@@ -27,13 +27,13 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:3000")
-            .allowed_methods(vec!["GET", "POST"])
+            .allowed_origin("https://zk-snap.vercel.app")  // Add your Vercel domain
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])  // Add all methods you need
             .allowed_headers(vec![
                 actix_web::http::header::AUTHORIZATION,
                 actix_web::http::header::ACCEPT,
+                actix_web::http::header::CONTENT_TYPE,
             ])
-            .allowed_header(actix_web::http::header::CONTENT_TYPE)
             .max_age(3600);
 
         App::new()
@@ -42,7 +42,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(proposal_service_data.clone())
             .configure(app::init::initialize)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
