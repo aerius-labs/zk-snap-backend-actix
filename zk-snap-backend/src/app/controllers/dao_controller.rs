@@ -36,7 +36,7 @@ async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) ->
     }))
 }
 
-#[get("/dao")]
+#[get("/dao/all_daos")]
 async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
     let daos = get_all_daos(db).await;
     match daos {
