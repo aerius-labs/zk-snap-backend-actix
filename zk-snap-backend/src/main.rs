@@ -27,8 +27,15 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("https://zk-snap.vercel.app")  // Add your Vercel domain
-            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])  // Add all methods you need
+            .allowed_origin("https://zk-snap.vercel.app")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![
+                "Content-Type",
+                "Origin",
+                "X-Requested-With",
+                "Accept",
+            ])
+            .supports_credentials()
             .max_age(3600);
 
         App::new()
