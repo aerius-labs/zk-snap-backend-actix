@@ -6,8 +6,9 @@ use halo2_base::utils::{fe_to_biguint, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
 use num_bigint::BigUint;
-use num_traits::Num;
+use num_traits::{Num, Zero};
 use pse_poseidon::Poseidon;
+use paillier_chip::paillier::paillier_add_native;
 use reqwest::Client;
 use std::env;
 use std::io::{Error, ErrorKind};
@@ -18,7 +19,7 @@ use crate::app::dtos::aggregator_request_dto::{
 };
 use crate::app::dtos::proposal_dto::VoteResultDto;
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
-use crate::app::utils::parse_string_pub_key::convert_to_public_key_big_int;
+use crate::app::utils::parse_string_pub_key::{convert_to_public_key_big_int, parse_public_key};
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
@@ -461,7 +462,12 @@ async fn handle_event_end(
 
     let snark = proposal.user_proof_array.clone();
 
-    let mut election_result: Vec<u64> = vec![0,0,0];
+    let mut election_result: Vec<BigUint> = vec![Zero::zero(), Zero::zero(), Zero::zero()];
+    
+    let (n, _) = match parse_public_key(&proposal.encrypted_keys.pub_key) {
+        Ok((n, g)) => (n, g),
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
 
     for user_proof in snark.iter() {
         let instance = user_proof.instances.clone();
@@ -469,25 +475,20 @@ async fn handle_event_end(
             .chunks(4)
             .map(|v| limbs_to_biguint(v.to_vec()))
             .collect::<Vec<BigUint>>();
-
-            let vote_in_string =
-            vote.iter().map(|v| v.to_string()).collect::<Vec<String>>();
-
-            let result_dto = VoteResultDto {
-                pvt: proposal.encrypted_keys.pvt_key.clone(),
-                vote: vote_in_string,
-            };
-
-            let result_of_string = call_reveal_result(result_dto).await?;
-            let result = result_of_string.iter().map(|v| v.parse::<u64>().unwrap()).collect::<Vec<u64>>();
-
-            election_result[0] += result[0];
-            election_result[1] += result[1];
-            election_result[2] += result[2];    
+        
+        for (i, v) in vote.iter().enumerate() {
+            election_result[i] = paillier_add_native(&n , &election_result[i], v);
+        }   
     }
-    
-    let result = election_result.iter().map(|v| v.to_string()).collect::<Vec<String>>();
-    proposal.result = result.clone();
+
+    let final_vote_in_string = election_result.iter().map(|v|v.to_string()).collect::<Vec<String>>();
+
+    let vote_dto = VoteResultDto {
+        pvt: proposal.encrypted_keys.pvt_key.clone(),
+        vote: final_vote_in_string
+    };
+
+    proposal.result = call_reveal_result(vote_dto).await?;
 
     db.update(proposal_id, proposal)
         .await

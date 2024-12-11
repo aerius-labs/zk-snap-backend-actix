@@ -13,6 +13,19 @@ struct PublicKey {
     pub g: String,
 }
 
+pub fn parse_public_key(json_str: &str) -> Result<(BigUint, BigUint), Box<dyn std::error::Error>> {
+    // Parse the JSON string into our struct
+    let pubkey: PublicKey = serde_json::from_str(json_str)?;
+    
+    // Convert n and g from string to BigUint
+    let n = BigUint::parse_bytes(pubkey.n.as_bytes(), 10)
+        .ok_or("Failed to parse n as BigUint")?;
+    let g = BigUint::parse_bytes(pubkey.g.as_bytes(), 10)
+        .ok_or("Failed to parse g as BigUint")?;
+    
+    Ok((n, g))
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct PublicKeyContainer {
     pub_key: String,
