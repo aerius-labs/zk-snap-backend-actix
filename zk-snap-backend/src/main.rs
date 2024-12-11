@@ -39,7 +39,6 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
 
         App::new()
-            .wrap(cors)
             .app_data(dao_service_data.clone())
             .app_data(proposal_service_data.clone())
             .configure(app::init::initialize)
