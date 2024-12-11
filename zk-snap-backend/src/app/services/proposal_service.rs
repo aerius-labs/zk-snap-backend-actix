@@ -461,25 +461,28 @@ async fn handle_event_end(
                     decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;
 
     let snark = proposal.user_proof_array.clone();
-
-    let mut election_result: Vec<BigUint> = vec![Zero::zero(), Zero::zero(), Zero::zero()];
     
     let (n, _) = match parse_public_key(&proposal.encrypted_keys.pub_key) {
         Ok((n, g)) => (n, g),
         Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
     };
 
-    for user_proof in snark.iter() {
+    let vote_enc = snark.iter().map(|user_proof| {
         let instance = user_proof.instances.clone();
-        let vote = instance[4..16]
+        instance[4..16]
             .chunks(4)
             .map(|v| limbs_to_biguint(v.to_vec()))
-            .collect::<Vec<BigUint>>();
-        
-        for (i, v) in vote.iter().enumerate() {
-            election_result[i] = paillier_add_native(&n , &election_result[i], v);
-        }   
-    }
+            .collect::<Vec<BigUint>>()
+    }).collect::<Vec<Vec<BigUint>>>();
+
+    let election_result = vote_enc.iter()
+        .skip(1)
+        .fold(vote_enc[0].clone(), |acc, vote| {
+            acc.iter()
+                .zip(vote.iter())
+                .map(|(a, b)| paillier_add_native(&n, &a, &b))
+                .collect()
+        });
 
     let final_vote_in_string = election_result.iter().map(|v|v.to_string()).collect::<Vec<String>>();
 
