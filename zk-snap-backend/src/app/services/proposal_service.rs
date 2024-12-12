@@ -462,42 +462,51 @@ async fn handle_event_end(
 
     let snark = proposal.user_proof_array.clone();
     
-    let (n, _) = match parse_public_key(&proposal.encrypted_keys.pub_key) {
-        Ok((n, g)) => (n, g),
-        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-    };
-
-    let vote_enc = snark.iter().map(|user_proof| {
-        let instance = user_proof.instances.clone();
-        instance[4..16]
-            .chunks(4)
-            .map(|v| limbs_to_biguint(v.to_vec()))
-            .collect::<Vec<BigUint>>()
-    }).collect::<Vec<Vec<BigUint>>>();
-
-    let election_result = vote_enc.iter()
-        .skip(1)
-        .fold(vote_enc[0].clone(), |acc, vote| {
-            acc.iter()
-                .zip(vote.iter())
-                .map(|(a, b)| paillier_add_native(&n, &a, &b))
-                .collect()
-        });
-
-    let final_vote_in_string = election_result.iter().map(|v|v.to_string()).collect::<Vec<String>>();
-
-    let vote_dto = VoteResultDto {
-        pvt: proposal.encrypted_keys.pvt_key.clone(),
-        vote: final_vote_in_string
-    };
-
-    proposal.result = call_reveal_result(vote_dto).await?;
-
-    db.update(proposal_id, proposal)
-        .await
-        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-
-    update_proposal_status(proposal_id, db, ProposalStatus::Completed).await
+    if snark.is_empty() {
+        proposal.result = vec!["0".to_string(); 3];
+        db.update(proposal_id, proposal)
+            .await
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    
+        update_proposal_status(proposal_id, db, ProposalStatus::Completed).await
+    } else {
+        let (n, _) = match parse_public_key(&proposal.encrypted_keys.pub_key) {
+            Ok((n, g)) => (n, g),
+            Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+        };
+    
+        let vote_enc = snark.iter().map(|user_proof| {
+            let instance = user_proof.instances.clone();
+            instance[4..16]
+                .chunks(4)
+                .map(|v| limbs_to_biguint(v.to_vec()))
+                .collect::<Vec<BigUint>>()
+        }).collect::<Vec<Vec<BigUint>>>();
+    
+        let election_result = vote_enc.iter()
+            .skip(1)
+            .fold(vote_enc[0].clone(), |acc, vote| {
+                acc.iter()
+                    .zip(vote.iter())
+                    .map(|(a, b)| paillier_add_native(&n, &a, &b))
+                    .collect()
+            });
+    
+        let final_vote_in_string = election_result.iter().map(|v|v.to_string()).collect::<Vec<String>>();
+    
+        let vote_dto = VoteResultDto {
+            pvt: proposal.encrypted_keys.pvt_key.clone(),
+            vote: final_vote_in_string
+        };
+    
+        proposal.result = call_reveal_result(vote_dto).await?;
+    
+        db.update(proposal_id, proposal)
+            .await
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    
+        update_proposal_status(proposal_id, db, ProposalStatus::Completed).await
+    }
 }
 
 async fn update_proposal_status(
