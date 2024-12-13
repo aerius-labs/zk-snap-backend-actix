@@ -60,33 +60,31 @@ pub struct UserProofDto {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalResponseDto {
-    #[serde(rename = "proposalId")]
-    pub proposal_id: u16,
+    #[serde(rename = "proposal_id")]
+    pub proposal_id: String,  // Changed to String to match output format
 
-    #[serde(rename = "daoName")]
+    #[serde(rename = "dao_name")]
     pub dao_name: String,
-
+    
     pub creator: String,
-
-    #[serde(rename = "daoLogo")]
-
+    
+    #[serde(rename = "dao_logo")]
     pub dao_logo: String,
-
+    
     pub title: String,
-
+    
     pub status: ProposalStatus,
-
-    #[serde(rename = "startTime")]
-    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    
+    #[serde(rename = "start_time")]
     pub start_time: chrono::DateTime<Utc>,
-
-    #[serde(rename = "endTime")]
-    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    
+    #[serde(rename = "end_time")]
     pub end_time: chrono::DateTime<Utc>,
-
-    #[serde(rename = "encryptedKeys")]
+    
+    #[serde(rename = "encrypted_keys")]
     pub encrypted_keys: EncryptedKeys
 }
+
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalByIdResponseDto {

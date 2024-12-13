@@ -56,36 +56,83 @@ where
     }
 
     pub async fn find_all_proposals_dto(&self) -> RepositoryResult<Vec<ProposalResponseDto>> {
-        let pipeline = vec![doc! {
-            "$project": {
-                "_id": 0,
-                "proposalId": 1,
-                "daoName": 1,
-                "creator": 1,
-                "daoLogo": 1,
-                "title": 1,
-                "status": 1,
-                "startTime": 1,
-                "endTime": 1,
-                "encryptedKeys": 1
+        let pipeline = vec![
+            doc! {
+                "$project": {
+                    "_id": 1,  // Include _id as we'll need it for proposal_id
+                    "proposalId": 1,
+                    "daoName": 1,
+                    "creator": 1,
+                    "daoLogo": 1,
+                    "title": 1,
+                    "status": 1,
+                    "startTime": 1,
+                    "endTime": 1,
+                    "encryptedKeys": 1
+                }
+            },
+            // Transform the document to match our desired output format
+            doc! {
+                "$addFields": {
+                    "proposal_id": { "$toString": "$_id" },  // Convert ObjectId to string
+                    "dao_name": "$daoName",
+                    "dao_logo": "$daoLogo",
+                    "start_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%SZ",
+                            "date": "$startTime"
+                        }
+                    },
+                    "end_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%SZ",
+                            "date": "$endTime"
+                        }
+                    },
+                    "encrypted_keys": "$encryptedKeys"
+                }
+            },
+            // Remove the original fields
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "daoName": 0,
+                    "daoLogo": 0,
+                    "startTime": 0,
+                    "endTime": 0,
+                    "encryptedKeys": 0,
+                    "proposalId": 0
+                }
             }
-        }];
+        ];
+
+        let options = mongodb::options::AggregateOptions::builder()
+            .batch_size(100)
+            .allow_disk_use(true)
+            .build();
 
         let mut cursor = self
             .collection
-            .aggregate(pipeline, None)
+            .aggregate(pipeline, options)
             .await
             .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
 
-        let mut proposals = Vec::new();
+        let mut proposals = Vec::with_capacity(100);
         while let Some(doc_result) = cursor.next().await {
             match doc_result {
                 Ok(doc) => {
-                    let dto = bson::from_document(doc)
-                        .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
-                    proposals.push(dto);
+                    match bson::from_document(doc) {
+                        Ok(dto) => proposals.push(dto),
+                        Err(e) => {
+                            eprintln!("Error deserializing document: {}", e);
+                            continue;
+                        }
+                    }
                 }
-                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
+                Err(e) => {
+                    eprintln!("Error fetching document: {}", e);
+                    continue;
+                }
             }
         }
 
@@ -141,12 +188,6 @@ where
     }
 
     pub async fn find_all_proposals_dto_by_dao(&self, dao_id: &str) -> RepositoryResult<Vec<ProposalResponseDto>> {
-        let options = mongodb::options::AggregateOptions::builder()
-            .batch_size(100)
-            .allow_disk_use(true)
-            .build();
-
-        // Create pipeline with match and project stages
         let pipeline = vec![
             // Match stage to filter by dao_id
             doc! {
@@ -154,10 +195,9 @@ where
                     "daoId": dao_id
                 }
             },
-            // Project stage to select only needed fields
             doc! {
                 "$project": {
-                    "_id": 0,
+                    "_id": 1,  // Include _id as we'll need it for proposal_id
                     "proposalId": 1,
                     "daoName": 1,
                     "creator": 1,
@@ -166,11 +206,48 @@ where
                     "status": 1,
                     "startTime": 1,
                     "endTime": 1,
-                    "encryptedKeys": 1,
-                    "daoId": 1  // Include daoId for dao lookup
+                    "encryptedKeys": 1
+                }
+            },
+            // Transform the document to match our desired output format
+            doc! {
+                "$addFields": {
+                    "proposal_id": { "$toString": "$_id" },  // Convert ObjectId to string
+                    "dao_name": "$daoName",
+                    "dao_logo": "$daoLogo",
+                    "start_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%SZ",
+                            "date": "$startTime"
+                        }
+                    },
+                    "end_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%SZ",
+                            "date": "$endTime"
+                        }
+                    },
+                    "encrypted_keys": "$encryptedKeys"
+                }
+            },
+            // Remove the original fields
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "daoName": 0,
+                    "daoLogo": 0,
+                    "startTime": 0,
+                    "endTime": 0,
+                    "encryptedKeys": 0,
+                    "proposalId": 0
                 }
             }
         ];
+
+        let options = mongodb::options::AggregateOptions::builder()
+            .batch_size(100)
+            .allow_disk_use(true)
+            .build();
 
         let mut cursor = self
             .collection
@@ -178,13 +255,12 @@ where
             .await
             .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
 
-        let mut proposals = Vec::with_capacity(50);
-        
+        let mut proposals = Vec::with_capacity(100);
         while let Some(doc_result) = cursor.next().await {
             match doc_result {
                 Ok(doc) => {
                     match bson::from_document(doc) {
-                        Ok(proposal) => proposals.push(proposal),
+                        Ok(dto) => proposals.push(dto),
                         Err(e) => {
                             eprintln!("Error deserializing document: {}", e);
                             continue;
@@ -200,7 +276,7 @@ where
 
         Ok(proposals)
     }
-
+    
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
         let obj_id =
             ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
