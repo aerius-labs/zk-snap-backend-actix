@@ -17,7 +17,7 @@ use tokio::spawn;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::VoteResultDto;
+use crate::app::dtos::proposal_dto::{ProposalResponseDto, VoteResultDto};
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
 use crate::app::utils::parse_string_pub_key::{convert_to_public_key_big_int, parse_public_key};
 use crate::app::{
@@ -74,8 +74,19 @@ pub async fn create_proposal(
        schedule_event(&id.to_string(), db_clone, start_time, end_time).await;
     });
     
+    let dao = match dao_client.find_by_id(&proposal.dao_id).await {
+        Ok(result) => result,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
+
+    if dao.is_none() {
+        return Err(Error::new(ErrorKind::NotFound, "DAO not found"));
+    }
+
     let proposal = Proposal {
         creator: proposal.creator,
+        dao_name: dao.clone().unwrap().name,
+        dao_logo: dao.clone().unwrap().logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()),
         title: proposal.title,
         proposal_id,
         description: proposal.description,
@@ -236,19 +247,19 @@ async fn call_reveal_result(result_dto: VoteResultDto) -> Result<Vec<String>, Er
 
 pub async fn get_all_proposals(
     db: web::Data<Repository<Proposal>>,
-) -> Result<Vec<Proposal>, Error> {
-    match db.find_all().await {
+) -> Result<Vec<ProposalResponseDto>, Error> {
+    match db.find_all_proposals_dto().await {
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }
 
+
 pub async fn get_proposal_by_dao_id(
     db: web::Data<Repository<Proposal>>,
     dao_id: &str,
-) -> Result<Vec<Proposal>, Error> {
-    let dao_id = bson::Bson::String(dao_id.to_string());
-    match db.find_all_by_field("daoId", dao_id).await {
+) -> Result<Vec<ProposalResponseDto>, Error> {
+    match db.find_all_proposals_dto_by_dao(&dao_id).await {
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }

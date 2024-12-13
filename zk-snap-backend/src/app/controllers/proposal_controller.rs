@@ -228,38 +228,10 @@ async fn get_proposal(
 #[get("/proposal/all_proposals")]
 async fn get_proposals(
     db: web::Data<Repository<Proposal>>,
-    dao_db: web::Data<Repository<Dao>>,
 ) -> impl Responder {
     match get_all_proposals(db).await {
         Ok(proposals) => {
-            let mut proposals_res: Vec<ProposalResponseDto> = Vec::new();
-            for proposal in proposals {
-                if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
-                    let dao = dao.unwrap();
-                    let creator = match public_key_to_eth_address(&proposal.creator) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            return HttpResponse::BadRequest().json(json!({
-                                "message": "Failed to get all proposals by dao",
-                                "Error": e.to_string()
-                            }))
-                        }
-                    };
-                    let dto = ProposalResponseDto {
-                        proposal_id: proposal.id.unwrap().to_string(),
-                        dao_name: dao.name,
-                        dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
-                        creator,
-                        title: proposal.title,
-                        status: proposal.status,
-                        start_time: proposal.start_time,
-                        end_time: proposal.end_time,
-                        encrypted_keys: proposal.encrypted_keys.clone()
-                    };
-                    proposals_res.push(dto);
-                }
-            }
-            return HttpResponse::Ok().json(proposals_res);
+            return HttpResponse::Ok().json(proposals);
         }
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
@@ -273,40 +245,13 @@ async fn get_proposals(
 #[get("/proposals_all_by_dao/{dao_id}")]
 async fn get_all_proposals_by_dao(
     db: web::Data<Repository<Proposal>>,
-    dao_db: web::Data<Repository<Dao>>,
+    dao_db: web::Data<Repository<Dao>>, 
     path: web::Path<String>,
 ) -> impl Responder {
     let dao_id = path.into_inner();
     match get_proposal_by_dao_id(db, &dao_id).await {
         Ok(result) => {
-            let mut proposals_res: Vec<ProposalResponseDto> = Vec::new();
-            for proposal in result {
-                if let Ok(dao) = dao_db.find_by_id(&proposal.dao_id).await {
-                    let dao = dao.unwrap();
-                    let creator = match public_key_to_eth_address(&proposal.creator) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            return HttpResponse::BadRequest().json(json!({
-                                "message": "Failed to get all proposals by dao",
-                                "Error": e.to_string()
-                            }))
-                        }
-                    };
-                    let dto = ProposalResponseDto {
-                        proposal_id: proposal.id.unwrap().to_string(),
-                        dao_name: dao.name,
-                        dao_logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()), // Unwrap the Option value
-                        creator,
-                        title: proposal.title,
-                        status: proposal.status,
-                        start_time: proposal.start_time,
-                        end_time: proposal.end_time,
-                        encrypted_keys: proposal.encrypted_keys.clone()
-                    };
-                    proposals_res.push(dto);
-                }
-            }
-            return HttpResponse::Ok().json(proposals_res);
+            return HttpResponse::Ok().json(result);
         }
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({

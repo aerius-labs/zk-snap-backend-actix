@@ -42,6 +42,12 @@ pub struct Proposal {
     #[serde(rename = "creator")]
     pub creator: String,
 
+    #[serde(rename = "daoName")]
+    pub dao_name: String,
+
+    #[serde(rename = "daoLogo")]
+    pub dao_logo: String,
+
     #[serde(rename = "title")]
     pub title: String,
 

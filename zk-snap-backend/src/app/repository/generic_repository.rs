@@ -1,4 +1,4 @@
-use crate::app::repository::traits::RepositoryError;
+use crate::app::{dtos::proposal_dto::ProposalResponseDto, repository::traits::RepositoryError};
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
@@ -55,6 +55,43 @@ where
         Ok(documents)
     }
 
+    pub async fn find_all_proposals_dto(&self) -> RepositoryResult<Vec<ProposalResponseDto>> {
+        let pipeline = vec![doc! {
+            "$project": {
+                "_id": 0,
+                "proposalId": 1,
+                "daoName": 1,
+                "creator": 1,
+                "daoLogo": 1,
+                "title": 1,
+                "status": 1,
+                "startTime": 1,
+                "endTime": 1,
+                "encryptedKeys": 1
+            }
+        }];
+
+        let mut cursor = self
+            .collection
+            .aggregate(pipeline, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let mut proposals = Vec::new();
+        while let Some(doc_result) = cursor.next().await {
+            match doc_result {
+                Ok(doc) => {
+                    let dto = bson::from_document(doc)
+                        .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+                    proposals.push(dto);
+                }
+                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
+            }
+        }
+
+        Ok(proposals)
+    }
+    
     pub async fn find_by_id(&self, id: &str) -> RepositoryResult<Option<T>> {
         let obj_id =
             ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
@@ -101,6 +138,67 @@ where
         }
 
         Ok(results)
+    }
+
+    pub async fn find_all_proposals_dto_by_dao(&self, dao_id: &str) -> RepositoryResult<Vec<ProposalResponseDto>> {
+        let options = mongodb::options::AggregateOptions::builder()
+            .batch_size(100)
+            .allow_disk_use(true)
+            .build();
+
+        // Create pipeline with match and project stages
+        let pipeline = vec![
+            // Match stage to filter by dao_id
+            doc! {
+                "$match": {
+                    "daoId": dao_id
+                }
+            },
+            // Project stage to select only needed fields
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "proposalId": 1,
+                    "daoName": 1,
+                    "creator": 1,
+                    "daoLogo": 1,
+                    "title": 1,
+                    "status": 1,
+                    "startTime": 1,
+                    "endTime": 1,
+                    "encryptedKeys": 1,
+                    "daoId": 1  // Include daoId for dao lookup
+                }
+            }
+        ];
+
+        let mut cursor = self
+            .collection
+            .aggregate(pipeline, options)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let mut proposals = Vec::with_capacity(50);
+        
+        while let Some(doc_result) = cursor.next().await {
+            match doc_result {
+                Ok(doc) => {
+                    match bson::from_document(doc) {
+                        Ok(proposal) => proposals.push(proposal),
+                        Err(e) => {
+                            eprintln!("Error deserializing document: {}", e);
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error fetching document: {}", e);
+                    continue;
+                }
+            }
+        }
+
+        Ok(proposals)
     }
 
     pub async fn update(&self, id: &str, document: T) -> RepositoryResult<()> {
