@@ -2,8 +2,7 @@ use crate::app::{dtos::proposal_dto::ProposalResponseDto, repository::traits::Re
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
-    bson::{doc, oid::ObjectId},
-    Collection,
+    bson::{doc, oid::ObjectId}, options::{Acknowledgment, InsertOneOptions, WriteConcern}, Collection
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,9 +24,18 @@ where
     }
 
     pub async fn create(&self, document: T) -> RepositoryResult<String> {
+        let write_concern = WriteConcern::builder()
+            .w(Acknowledgment::Majority)
+            .journal(false)
+            .build();
+
+        let options = InsertOneOptions::builder()
+            .write_concern(write_concern)
+            .build();
+
         let result = self
             .collection
-            .insert_one(document, None)
+            .insert_one(document, options)
             .await
             .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
 

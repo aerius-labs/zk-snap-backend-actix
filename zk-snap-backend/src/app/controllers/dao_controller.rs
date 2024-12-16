@@ -9,6 +9,79 @@ use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use serde_json::json;
 use validator::Validate;
 
+/// Create a new Dao
+/// 
+/// This endpoint create a new community DAO
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// POST /dao
+/// Content-Type: application/json
+/// ```
+/// 
+/// # Request Body
+/// 
+/// The request must include a JSON body with the following fields:
+/// 
+/// ```json
+/// {
+///    "name": "DAO Name",
+///    "description": "DAO Description",
+///    "logo": "https://www.example.com/logo.png"
+/// }
+/// ```
+/// 
+/// # Validation Rules
+/// 
+/// - `name`: String between 3 and 50 characters
+/// - `description`: String between 3 and 200 characters
+/// - `logo`: Optional URL string with minimum length of 3 characters
+/// 
+/// # Response
+/// 
+/// ## Success (201 Created)
+/// 
+/// ```json
+/// {
+///     "message": "Creating DAO",
+///     "ObjectId": "507f1f77bcf86cd799439011"
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when validation fails:
+/// ```json
+/// {
+///     "message": "Invalid input",
+///     "errors": {
+///         "name": ["Name must be between 3 and 50 characters"]
+///     }
+/// }
+/// ```
+/// 
+/// Returned when creation fails:
+/// ```json
+/// {
+///     "message": "Failed to create DAO",
+///     "error": "Database error message"
+/// }
+/// ```
+/// 
+/// # Example Usage
+/// 
+/// ```bash
+/// curl -X POST http://api.example.com/dao \
+///      -H "Content-Type: application/json" \
+///      -d '{
+///           "name": "Example DAO",
+///           "description": "A description of the DAO",
+///           "logo": "https://example.com/logo.png"
+///          }'
+/// ```
 #[post("/dao")]
 async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) -> impl Responder {
     let dao = dao.into_inner();
@@ -20,20 +93,16 @@ async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) ->
         }));
     }
 
-    let result = match create_dao(db, dao).await {
-        Ok(result) => result,
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to create DAO",
-                "Error": e.to_string()
-            }));
-        }
-    };
-
-    HttpResponse::Created().json(json!({
-        "message": "Creating DAO",
-        "ObjectId": result
-    }))
+    match create_dao(db, dao).await {
+        Ok(result) => HttpResponse::Created().json(json!({
+            "message": "Creating DAO",
+            "ObjectId": result
+        })),
+        Err(e) => HttpResponse::BadRequest().json(json!({
+            "message": "Failed to create DAO",
+            "Error": e.to_string()
+        }))
+    }
 }
 
 #[get("/dao/all_daos")]
