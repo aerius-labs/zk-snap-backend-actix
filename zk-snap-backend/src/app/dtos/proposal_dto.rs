@@ -89,6 +89,7 @@ pub struct ProposalResponseDto {
 #[derive(Serialize, Deserialize)]
 pub struct ProposalByIdResponseDto {
     pub dao_name: String, 
+    pub dao_id: String,
     pub creator_address: String,
     pub proposal_id: String,
     pub proposal_name: String,

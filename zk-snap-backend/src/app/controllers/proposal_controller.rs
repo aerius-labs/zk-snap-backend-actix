@@ -139,7 +139,6 @@ async fn get_results(
 #[get("/proposal/id/{proposal_id}")]
 async fn get_proposal_by_uid(
     proposal_db: web::Data<Repository<Proposal>>,
-    dao_db: web::Data<Repository<Dao>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let proposal_id = path.into_inner();
@@ -148,20 +147,10 @@ async fn get_proposal_by_uid(
         Err(e) => return HttpResponse::BadRequest().json(json!({ "message": "Failed to find proposal", "error": e.to_string() })),
     };
 
-    let dao = match dao_db.find_by_id(&proposal.dao_id).await {
-        Ok(Some(dao)) => dao,
-        Ok(None) => return HttpResponse::NotFound().json(json!({ "message": "DAO not found" })),
-        Err(e) => return HttpResponse::InternalServerError().json(json!({ "message": "Error fetching DAO", "error": e.to_string() })),
-    };
-
-    let creator_address = match public_key_to_eth_address(&proposal.creator) {
-        Ok(address) => address,
-        Err(_) => return HttpResponse::InternalServerError().json(json!({ "message": "Failed to convert public key to address" })),
-    };
-
     let resp = ProposalByIdResponseDto {
-        dao_name: dao.name,
-        creator_address,
+        dao_name: proposal.dao_name,
+        dao_id: proposal.dao_id,
+        creator_address: proposal.creator,
         proposal_id,
         proposal_status: proposal.status,
         proposal_description: proposal.description,
