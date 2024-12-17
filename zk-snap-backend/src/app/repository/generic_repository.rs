@@ -1,8 +1,8 @@
-use crate::app::{dtos::proposal_dto::ProposalResponseDto, repository::traits::RepositoryError};
+use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::ProposalResponseDto}, repository::traits::RepositoryError};
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
-    bson::{doc, oid::ObjectId}, options::{Acknowledgment, InsertOneOptions, WriteConcern}, Collection
+    bson::{doc, oid::ObjectId}, options::{Acknowledgment, AggregateOptions, InsertOneOptions, WriteConcern}, Collection
 };
 use serde::{Deserialize, Serialize};
 
@@ -62,6 +62,47 @@ where
 
         Ok(documents)
     }
+
+    /// Retrieves all DAO records from the database with only specified fields (name, logo, id) using MongoDB aggregation.
+    /// Returns a vector of DaoProjectFields DTOs, which contains the minimal required data for the DAO response.
+    /// Uses batch processing with a size of 100 for optional performace when handling large datasets.
+    pub async fn find_all_projected(&self) -> RepositoryResult<Vec<DaoProjectedFields>> {
+        let pipeline = DaoProjectedFields::projection_doc();
+
+        let options = AggregateOptions::builder()
+            .batch_size(100)
+            .allow_disk_use(true)
+            .build();
+
+            let mut cursor = self
+            .collection
+            .aggregate(pipeline, options)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let mut documents = Vec::with_capacity(100);
+        while let Some(doc_result) = cursor.next().await {
+            match doc_result {
+                Ok(doc) => {
+                    match bson::from_document(doc) {
+                        Ok(dto) => documents.push(dto),
+                        Err(e) => {
+                            eprintln!("Error deserializing document: {}", e);
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error fetching document: {}", e);
+                    continue;
+                }
+            }
+        }
+
+        Ok(documents)
+
+    }
+    
 
     pub async fn find_all_proposals_dto(&self) -> RepositoryResult<Vec<ProposalResponseDto>> {
         let pipeline = vec![

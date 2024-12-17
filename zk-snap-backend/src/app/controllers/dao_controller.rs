@@ -105,24 +105,45 @@ async fn create(db: web::Data<Repository<Dao>>, dao: web::Json<CreateDaoDto>) ->
     }
 }
 
+/// Get all DAOs
+/// 
+/// This endpoint returns a list of all DAOs
+/// 
+/// # API Endpoint
+/// ```not_rust
+/// GET /dao/all_daos
+/// ```
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///    "name": "DAO Name",
+///    "logo": "https://www.example.com/logo.png",
+///    "id": "507f1f77bcf86cd799439011"
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when fetching fails:
+/// 
+/// ```json
+/// {
+///    "message": "Failed to get all DAOs",
+///    "Error": "Database error message"
+/// }
+/// ```
 #[get("/dao/all_daos")]
 async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
     let daos = get_all_daos(db).await;
     match daos {
         Ok(result) => {
-            let mut dao_resp: Vec<DaoResponseDto> = Vec::new();
-            for dao in result {
-                let id = dao.id.unwrap().to_string();
-                let dao_dto = DaoResponseDto{
-                    name: dao.name,
-                    id,
-                    logo: dao.logo.unwrap_or("https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string()),
-                    // members_count: dao.members.len()
-                };
-                dao_resp.push(dao_dto);
-            }
-
-            HttpResponse::Ok().json(dao_resp)
+            HttpResponse::Ok().json(result)
         }
         Err(e) => HttpResponse::BadRequest().json(json!({
           "message": "Failed to get all DAOs",

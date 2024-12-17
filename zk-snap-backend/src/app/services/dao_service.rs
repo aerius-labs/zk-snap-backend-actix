@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use crate::app::dtos::dao_dto::CreateDaoDto;
+use crate::app::dtos::dao_dto::{CreateDaoDto, DaoResponseDto};
 use crate::app::entities::dao_entity::Dao;
 use crate::app::repository::generic_repository::Repository;
 use actix_web::web;
@@ -27,9 +27,23 @@ pub async fn create_dao(
     Ok(object_id)
 }
 
-pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<Dao>, Error> {
-    match db.find_all().await {
-        Ok(result) => Ok(result),
+/// Returns a list of all DAOs
+/// Adds a logo in response if not present in the DAO
+pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<DaoResponseDto>, Error> {
+    match db.find_all_projected().await {
+        Ok(result) => {
+            let dao_resp: Vec<DaoResponseDto> = result
+                .into_iter()
+                .map(|dao| DaoResponseDto {
+                    name: dao.name,
+                    id: dao.id.unwrap().to_string(),
+                    logo: dao.logo.unwrap_or_else( ||
+                        "https://as1.ftcdn.net/v2/jpg/05/14/25/60/1000_F_514256050_E5sjzOc3RjaPSXaY3TeaqMkOVrXEhDhT.jpg".to_string(),
+                    ),
+                })
+                .collect();
+            Ok(dao_resp)
+        }
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
 }

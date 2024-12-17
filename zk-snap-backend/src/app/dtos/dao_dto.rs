@@ -1,3 +1,4 @@
+use bson::{doc, Document};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -24,10 +25,42 @@ pub struct CreateDaoDto {
     // pub members: Vec<String>,
 }
 
+/// DTO for response
 #[derive(Serialize, Deserialize)]
 pub struct DaoResponseDto {
     pub name: String,
     pub logo: String,
     pub id: String,
     // pub members_count: usize,
+}
+
+/// DTO for projected fields
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DaoProjectedFields {
+    #[serde(rename = "_id")]
+    pub id: Option<bson::oid::ObjectId>,
+    pub name: String,
+    pub logo: Option<String>,
+}
+
+/// Mongo Document for projected fields
+impl DaoProjectedFields {
+    pub fn projection_doc() -> Vec<Document> {
+        vec![
+            // Project only the fields we need
+            doc! {
+                "$project": {
+                    "_id": 1,
+                    "name": 1,
+                    "logo": 1
+                }
+            },
+            // Transform the document to match our desired format
+            doc! {
+                "$addFields": {
+                    "id": { "$toString": "$_id" }
+                }
+            }
+        ]
+    }
 }
