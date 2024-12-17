@@ -7,17 +7,82 @@ use validator::Validate;
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
-        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, ProposalResponseDto, UserProofDto},
+        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, UserProofDto},
     },
     entities::{dao_entity::Dao, proposal_entity::{Proposal, UserProof}},
     repository::generic_repository::Repository,
     services::proposal_service::{
             create_proposal, get_all_proposals, get_proposal_by_dao_id,
             get_proposal_by_id, get_result_on_proposal, submit_proof_to_proposal,
-            // submit_vote_to_aggregator,
         },
-    utils::parse_string_pub_key::public_key_to_eth_address,
 };
+
+/// Create a new Proposal
+/// 
+/// This endpoint creates a new proposal for a Community.
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// POST /proposal
+/// Content-Type: application/json
+/// ```
+/// 
+/// # Request Body
+/// 
+/// The request must include a JSON body with the following fields:
+/// 
+/// ```json
+/// {
+///  "creator": "0x11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5",
+///  "title": "Proposal 3",
+///  "description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
+///  "dao_id": "6614077226af72332791da5f",
+///  "end_time": "2025-10-12T07:14:44.077Z",
+///  "start_time": "2025-10-12T07:09:37.233Z",
+///  "voting_options": ["yes", "no"],
+///  "membership_root": "0x1f38b57f3bdf96f05ea62fa68814871bf0ca8ce4dbe073d8497d5a6b0a53e5e0",
+///  "nullifier": "0x0339861e70a9bdb6b01a88c7534a3332db915d3d06511b79a5724221a6958fbe",
+///  "membership_proof": "0x0339861e70a9bdb6b01a88c7534a3332db915d3d06511b79a5724221a6958fbe"
+///  }
+/// ```
+/// 
+/// # Validation Rules
+/// Are defined on the `CreateProposalDto` struct
+/// 
+/// # Response
+/// 
+/// ## Success (201 Created)
+/// 
+/// ```json
+/// {
+///     "message": "Creating proposal",
+///    "ObjectId": "507f1f77bcf86cd799439011"
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// All Errors are defined according to the validation rules
+/// 
+/// # Example Request
+/// ```bash
+/// curl -X POST http://api.example.com/proposal \
+///      -H "Content-Type: application/json" \
+///      -d '{
+///         "creator": "0x11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5",
+///         "title": "Proposal 3",
+///         "description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
+///         "dao_id": "6614077226af72332791da5f",
+///         "end_time": "2025-10-12T07:14:44.077Z",
+///         "start_time": "2025-10-12T07:09:37.233Z",
+///         "voting_options": ["yes", "no"],
+///         "membership_root": "0x1f38b57f3bdf96f05ea62fa68814871bf0ca8ce4dbe073d8497d5a6b0a53e5e0",
+///         "nullifier": "0x0339861e70a9bdb6b01a88c7534a3332db915d3d06511b79a5724221a6958fbe",
+///         "membership_proof": "0x0339861e70a9bdb6b01a88c7534a3332db915d3d06511b79a5724221a6958fbe"
+///       }'
+/// ```
 
 #[post("/proposal")]
 async fn create(
@@ -30,21 +95,6 @@ async fn create(
         return HttpResponse::BadRequest().json(json!({
             "message": "Invalid input",
             "Error": proposal.validate().unwrap_err()
-        }));
-    }
-
-    let now = Utc::now();
-    if proposal.start_time <= now {
-        return HttpResponse::BadRequest().json(json!({
-            "message": "Start time must be in the future",
-        }));
-    } else if proposal.end_time <= now {
-        return HttpResponse::BadRequest().json(json!({
-            "message": "End time must be in the future",
-        }));
-    }else if proposal.end_time <= proposal.start_time {
-        return HttpResponse::BadRequest().json(json!({
-            "message": "End time must be after start time",
         }));
     }
 

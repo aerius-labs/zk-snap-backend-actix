@@ -1,4 +1,3 @@
-use crate::app::dtos::dao_dto::DaoResponseDto;
 use crate::app::repository::generic_repository::Repository;
 use crate::app::services::dao_service::{
     create_dao, delete_by_id, get_all_daos, get_dao_by_id, update_dao_by_id,

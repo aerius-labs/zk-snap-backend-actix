@@ -34,6 +34,15 @@ fn parse_big_uint(s: &str) -> BigUint {
     return big_uint;
 }
 
+/// Create a proposal
+/// 
+/// # Arguments
+/// 
+/// * `db` - Repository for Proposal
+/// * `dao_client` - Repository for DAO
+/// * `proposal` - CreateProposalDto
+/// 
+/// This check's sanity of start time and end time of proposal, and also generate encrypted keys to encrypt votes.
 pub async fn create_proposal(
     db: web::Data<Repository<Proposal>>,
     dao_client: web::Data<Repository<Dao>>,
@@ -46,25 +55,25 @@ pub async fn create_proposal(
     let encrypted_keys = generate_encrypted_keys(proposal.end_time).await?;
 
     // this converts the public key to a big int
-    let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
+    // let public_key = convert_to_public_key_big_int(&encrypted_keys.pub_key)?;
 
     //get random id in u16
     let proposal_id = generate_unique_random_id(db.clone()).await?;
 
-    // this creates the base proof dto
-    let aggregator_request_dto = AggregatorBaseDto {
-        pk_enc: public_key,
-        membership_root: parse_big_uint(&proposal.membership_root),
-        proposal_id,
-        init_nullifier_root: parse_big_uint(&proposal.nullifier),
-    };
+    // // this creates the base proof dto
+    // let aggregator_request_dto = AggregatorBaseDto {
+    //     pk_enc: public_key,
+    //     membership_root: parse_big_uint(&proposal.membership_root),
+    //     proposal_id,
+    //     init_nullifier_root: parse_big_uint(&proposal.nullifier),
+    // };
 
-    log::info!("base proof dto {:?}", aggregator_request_dto);
-    // this creates the base proof
-    match create_base_proof(aggregator_request_dto).await {
-        Ok(_) => (),
-        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
-    };
+    // log::info!("base proof dto {:?}", aggregator_request_dto);
+    // // this creates the base proof
+    // match create_base_proof(aggregator_request_dto).await {
+    //     Ok(_) => (),
+    //     Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    // };
 
     let start_time = proposal.start_time;
     let end_time = proposal.end_time;
