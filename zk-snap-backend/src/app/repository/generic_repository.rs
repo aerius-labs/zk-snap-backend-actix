@@ -1,4 +1,4 @@
-use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::ProposalResponseDto}, repository::traits::RepositoryError};
+use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::{ProposalProjectedFields, ProposalResponseDto}}, repository::traits::RepositoryError};
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
@@ -198,6 +198,35 @@ where
             .find_one(filter, None)
             .await
             .map_err(|e| RepositoryError::InternalError(e.to_string()))
+    }
+
+    pub async fn find_by_id_projected(&self, id: &str) -> RepositoryResult<Option<ProposalProjectedFields>> {
+        let obj_id =
+            ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        let pipeline = ProposalProjectedFields::proposal_projected_doc(obj_id);
+
+        let mut cursor = self
+            .collection
+            .aggregate(pipeline, None)
+            .await
+            .map_err(|e| RepositoryError::InternalError(e.to_string()))?;
+
+        if let Some(doc_result) = cursor.next().await {
+            match doc_result {
+                Ok(doc) => {
+                    match bson::from_document(doc) {
+                        Ok(dto) => Ok(Some(dto)),
+                        Err(e) => {
+                            Err(RepositoryError::InternalError(e.to_string()))
+                        },
+                    }
+                }
+                Err(e) => Err(RepositoryError::InternalError(e.to_string())),
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn if_field_exists(&self, field: &str, value: &str) -> RepositoryResult<bool> {

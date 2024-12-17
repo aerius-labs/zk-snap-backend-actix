@@ -17,7 +17,7 @@ use tokio::spawn;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::{ProposalResponseDto, VoteResultDto};
+use crate::app::dtos::proposal_dto::{ProposalByIdResponseDto, ProposalResponseDto, VoteResultDto};
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
 use crate::app::utils::parse_string_pub_key::{convert_to_public_key_big_int, parse_public_key};
 use crate::app::{
@@ -200,10 +200,24 @@ pub async fn submit_proof_to_proposal(
 pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
     id: &str,
-) -> Result<Proposal, Error> {
-    let proposal = db.find_by_id(id).await.unwrap();
+) -> Result<ProposalByIdResponseDto, Error> {
+    let proposal = db.find_by_id_projected(id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     match proposal {
-        Some(proposal) => Ok(proposal),
+        Some(proposal) => {
+            let dto = ProposalByIdResponseDto {
+                proposal_id: proposal.id.to_string(),
+                dao_name: proposal.dao_name,
+                dao_id: proposal.dao_id,
+                creator_address: proposal.creator,
+                proposal_name: proposal.title,
+                proposal_status: proposal.status,
+                proposal_description: proposal.description,
+                start_time: proposal.start_time,
+                end_time: proposal.end_time,
+                encrypted_keys: proposal.encrypted_keys
+            };
+            Ok(dto)
+        },
         None => Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
     }
 }
@@ -212,7 +226,15 @@ pub async fn get_result_on_proposal(
     db: web::Data<Repository<Proposal>>,
     id: &str,
 ) -> Result<Vec<String>, Error> {
-    let mut proposal = get_proposal_by_id(db.clone(), id).await?;
+    let proposal = match db.find_by_id(id).await {
+        Ok(result) => result,
+        Err(e) => return Err(Error::new(ErrorKind::Other, e.to_string())),
+    };
+
+    let proposal = match proposal {
+        Some(proposal) => proposal,
+        None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    };
 
     match proposal.status {
         ProposalStatus::Inactive => {
@@ -475,7 +497,10 @@ async fn handle_event_end(
     db: web::Data<Repository<Proposal>>,
 ) -> Result<(), Error> {
 
-    let mut proposal = get_proposal_by_id(db.clone(), proposal_id).await?;
+    let mut proposal = match db.find_by_id(proposal_id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?{
+        Some(proposal) => proposal,
+        None => return Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    };
     
     proposal.encrypted_keys.pvt_key =
                     decrypt_keys(proposal.encrypted_keys.pvt_key.clone()).await?;

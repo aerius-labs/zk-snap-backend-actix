@@ -7,7 +7,7 @@ use validator::Validate;
 use crate::app::{
     dtos::{
         aggregator_request_dto::ProofFromAggregator,
-        proposal_dto::{self, CreateProposalDto, ProposalByIdResponseDto, UserProofDto},
+        proposal_dto::{ CreateProposalDto, ProposalByIdResponseDto, UserProofDto},
     },
     entities::{dao_entity::Dao, proposal_entity::{Proposal, UserProof}},
     repository::generic_repository::Repository,
@@ -127,11 +127,19 @@ async fn vote_on_proposal(
     // if true, submit vote to aggregator
     // else, push user proof in a queue
     
-    let mut proposal = match get_proposal_by_id(proposal_db.clone(), &proposal_id).await {
-        Ok(result) => result,
+    let mut proposal = match proposal_db.find_by_id(&proposal_id).await {
+        Ok(proposal) => match proposal {
+            Some(proposal) => proposal,
+            None => {
+                return HttpResponse::BadRequest().json(json!({
+                    "message": "Failed to find proposal",
+                    "Error": "Proposal not found"
+                }));
+            }
+        },
         Err(e) => {
             return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to get proposal",
+                "message": "Failed to find proposal",
                 "Error": e.to_string()
             }));
         }
@@ -186,31 +194,71 @@ async fn get_results(
     }
 }
 
+/// Get a Proposal by its ID
+/// 
+/// This endpoint retrieves a proposal by its ID.
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// GET /proposal/id/{proposal_id}
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// The request must include the proposal_id in the path.
+/// 
+/// # Response 
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///     "dao_name": "MerkleTree",
+///     "dao_id": "6614077226af72332791da5f",
+///     "creator_address": "",
+///     "proposal_id": "",
+///     "proposal_name": "Proposal",
+///     "proposal_status": "Inactive",
+///     "proposal_description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
+///     "start_time": "2025-10-12T07:09:37.233Z",
+///     "end_time": "2025-10-12T07:14:44.077Z",
+///     "encrypted_keys": ""
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when fetching fails:
+/// 
+/// ```json
+/// {
+///    "message": "Failed to find proposal",
+///    "Error": "Proposal not found"
+/// }
+/// ```
+/// 
+/// # Example Request
+/// 
+/// ```bash
+/// curl -X GET http://api.example.com/dao \
+///     -H "Content-Type: application/json" \
+///    -d '{ "proposal_id": "507f1f77bcf86cd799439011" }'
+/// ```
+
+
 #[get("/proposal/id/{proposal_id}")]
 async fn get_proposal_by_uid(
     proposal_db: web::Data<Repository<Proposal>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let proposal_id = path.into_inner();
-    let proposal = match get_proposal_by_id(proposal_db, &proposal_id).await {
-        Ok(proposal) => proposal,
+    match get_proposal_by_id(proposal_db, &proposal_id).await {
+        Ok(proposal) =>  HttpResponse::Ok().json(proposal),
         Err(e) => return HttpResponse::BadRequest().json(json!({ "message": "Failed to find proposal", "error": e.to_string() })),
-    };
-
-    let resp = ProposalByIdResponseDto {
-        dao_name: proposal.dao_name,
-        dao_id: proposal.dao_id,
-        creator_address: proposal.creator,
-        proposal_id,
-        proposal_status: proposal.status,
-        proposal_description: proposal.description,
-        proposal_name: proposal.title.clone(), // Assuming this should match the `proposal_name` field
-        start_time: proposal.start_time,
-        end_time: proposal.end_time,
-        encrypted_keys: proposal.encrypted_keys.clone()
-    };
-
-    HttpResponse::Ok().json(resp)
+    }
 }
 
 

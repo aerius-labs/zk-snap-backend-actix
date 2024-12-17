@@ -1,5 +1,6 @@
 use std::any;
 
+use bson::{doc, oid::ObjectId, DateTime, Document};
 use chrono::Utc;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
@@ -100,6 +101,52 @@ pub struct ProposalByIdResponseDto {
     pub encrypted_keys: EncryptedKeys
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProposalProjectedFields {
+    #[serde(rename = "_id")]
+    pub id: ObjectId,
+    #[serde(rename = "daoName")]
+    pub dao_name: String,
+    #[serde(rename = "daoId")]
+    pub dao_id: String,
+    pub creator: String,
+    pub status: ProposalStatus,
+    pub description: String,
+    pub title: String,
+    #[serde(rename = "startTime", with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub start_time: chrono::DateTime<Utc>,
+    #[serde(rename = "endTime", with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub end_time: chrono::DateTime<Utc>,
+    #[serde(rename = "encryptedKeys")]
+    pub encrypted_keys: EncryptedKeys
+}
+
+
+impl ProposalProjectedFields {
+    pub fn proposal_projected_doc(obj_id: ObjectId) -> Vec<Document> {
+        vec![
+            doc! {
+                "$match": {
+                    "_id": obj_id
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 1,
+                    "daoName": 1,
+                    "daoId": 1,
+                    "creator": 1,
+                    "status": 1,
+                    "description": 1,
+                    "title": 1,
+                    "startTime": 1,  // MongoDB will handle DateTime conversion
+                    "endTime": 1,
+                    "encryptedKeys": 1
+                }
+            }
+        ]
+    }
+}
 #[derive(Serialize, Deserialize)]
 pub struct MerkleProofVoter {
     pub proof: Vec<Fr>,
