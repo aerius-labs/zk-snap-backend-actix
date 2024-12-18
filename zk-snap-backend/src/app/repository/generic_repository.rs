@@ -4,9 +4,9 @@ use futures::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId}, options::{Acknowledgment, AggregateOptions, InsertOneOptions, WriteConcern}, Collection
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::traits::RepositoryResult;
+use super::traits::{Projectable, RepositoryResult};
 
 pub struct Repository<T>
 where
@@ -200,11 +200,14 @@ where
             .map_err(|e| RepositoryError::InternalError(e.to_string()))
     }
 
-    pub async fn find_by_id_projected(&self, id: &str) -> RepositoryResult<Option<ProposalProjectedFields>> {
+    /// Retrieves a single document from the database with only specified fields using MongoDB aggregation.
+    pub async fn find_by_id_projected<R>(&self, id: &str) -> RepositoryResult<Option<R>>
+    where R: DeserializeOwned + Projectable
+    {
         let obj_id =
             ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
 
-        let pipeline = ProposalProjectedFields::proposal_projected_doc(obj_id);
+        let pipeline = R::get_projection_pipeline(obj_id);
 
         let mut cursor = self
             .collection

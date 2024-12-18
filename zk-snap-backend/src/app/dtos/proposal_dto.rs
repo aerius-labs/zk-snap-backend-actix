@@ -6,7 +6,7 @@ use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
+use crate::app::{entities::proposal_entity::{EncryptedKeys, ProposalStatus}, repository::traits::Projectable};
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(
@@ -122,8 +122,8 @@ pub struct ProposalProjectedFields {
 }
 
 
-impl ProposalProjectedFields {
-    pub fn proposal_projected_doc(obj_id: ObjectId) -> Vec<Document> {
+impl Projectable for ProposalProjectedFields {
+    fn get_projection_pipeline(obj_id: ObjectId) -> Vec<Document> {
         vec![
             doc! {
                 "$match": {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bson::{oid::ObjectId, Document};
 use serde::{Deserialize, Serialize};
 
 // Custom error type that can be extended to wrap various database errors
@@ -30,4 +31,9 @@ where
     async fn find_by_id(&self, id: &str) -> RepositoryResult<Option<T>>;
     async fn update(&self, id: &str, document: T) -> RepositoryResult<()>;
     async fn delete(&self, id: &str) -> RepositoryResult<()>;
+}
+
+/// This projectable trait is used to project the fields of a document
+pub trait Projectable {
+    fn get_projection_pipeline(id: ObjectId) -> Vec<Document>;
 }

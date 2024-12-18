@@ -17,7 +17,7 @@ use tokio::spawn;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::{ProposalByIdResponseDto, ProposalResponseDto, VoteResultDto};
+use crate::app::dtos::proposal_dto::{ProposalByIdResponseDto, ProposalProjectedFields, ProposalResponseDto, VoteResultDto};
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
 use crate::app::utils::parse_string_pub_key::{convert_to_public_key_big_int, parse_public_key};
 use crate::app::{
@@ -201,7 +201,7 @@ pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
     id: &str,
 ) -> Result<ProposalByIdResponseDto, Error> {
-    let proposal = db.find_by_id_projected(id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let proposal: Option<ProposalProjectedFields> = db.find_by_id_projected(id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     match proposal {
         Some(proposal) => {
             let dto = ProposalByIdResponseDto {
