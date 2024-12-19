@@ -35,5 +35,5 @@ where
 
 /// This projectable trait is used to project the fields of a document
 pub trait Projectable {
-    fn get_projection_pipeline(id: ObjectId) -> Vec<Document>;
+    fn get_projection_pipeline(id: Option<ObjectId>) -> Vec<Document>;
 }

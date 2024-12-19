@@ -279,7 +279,7 @@ async fn call_reveal_result(result_dto: VoteResultDto) -> Result<Vec<String>, Er
 pub async fn get_all_proposals(
     db: web::Data<Repository<Proposal>>,
 ) -> Result<Vec<ProposalResponseDto>, Error> {
-    match db.find_all_proposals_dto().await {
+    match db.find_all_with_projection().await {
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }

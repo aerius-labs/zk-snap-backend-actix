@@ -1,4 +1,4 @@
-use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::{ProposalProjectedFields, ProposalResponseDto}}, repository::traits::RepositoryError};
+use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::ProposalResponseDto}, repository::traits::RepositoryError};
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
@@ -104,56 +104,11 @@ where
     }
     
 
-    pub async fn find_all_proposals_dto(&self) -> RepositoryResult<Vec<ProposalResponseDto>> {
-        let pipeline = vec![
-            doc! {
-                "$project": {
-                    "_id": 1,  // Include _id as we'll need it for proposal_id
-                    "proposalId": 1,
-                    "daoName": 1,
-                    "creator": 1,
-                    "daoLogo": 1,
-                    "title": 1,
-                    "status": 1,
-                    "startTime": 1,
-                    "endTime": 1,
-                    "encryptedKeys": 1
-                }
-            },
-            // Transform the document to match our desired output format
-            doc! {
-                "$addFields": {
-                    "proposal_id": { "$toString": "$_id" },  // Convert ObjectId to string
-                    "dao_name": "$daoName",
-                    "dao_logo": "$daoLogo",
-                    "start_time": {
-                        "$dateToString": {
-                            "format": "%Y-%m-%dT%H:%M:%SZ",
-                            "date": "$startTime"
-                        }
-                    },
-                    "end_time": {
-                        "$dateToString": {
-                            "format": "%Y-%m-%dT%H:%M:%SZ",
-                            "date": "$endTime"
-                        }
-                    },
-                    "encrypted_keys": "$encryptedKeys"
-                }
-            },
-            // Remove the original fields
-            doc! {
-                "$project": {
-                    "_id": 0,
-                    "daoName": 0,
-                    "daoLogo": 0,
-                    "startTime": 0,
-                    "endTime": 0,
-                    "encryptedKeys": 0,
-                    "proposalId": 0
-                }
-            }
-        ];
+    pub async fn find_all_with_projection<R>(&self) -> RepositoryResult<Vec<R>>
+    where R: DeserializeOwned + Projectable
+    {
+
+        let pipeline = R::get_projection_pipeline(None);
 
         let options = mongodb::options::AggregateOptions::builder()
             .batch_size(100)
@@ -172,16 +127,10 @@ where
                 Ok(doc) => {
                     match bson::from_document(doc) {
                         Ok(dto) => proposals.push(dto),
-                        Err(e) => {
-                            eprintln!("Error deserializing document: {}", e);
-                            continue;
-                        }
+                        Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
                     }
                 }
-                Err(e) => {
-                    eprintln!("Error fetching document: {}", e);
-                    continue;
-                }
+                Err(e) => return Err(RepositoryError::InternalError(e.to_string())),
             }
         }
 
@@ -207,7 +156,7 @@ where
         let obj_id =
             ObjectId::parse_str(id).map_err(|e| RepositoryError::InternalError(e.to_string()))?;
 
-        let pipeline = R::get_projection_pipeline(obj_id);
+        let pipeline = R::get_projection_pipeline(Some(obj_id));
 
         let mut cursor = self
             .collection

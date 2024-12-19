@@ -262,55 +262,55 @@ async fn get_proposal_by_uid(
 }
 
 
-#[post("/proposal/aggregate")]
-async fn submit_aggregated_snark(
-    proposal_db: web::Data<Repository<Proposal>>,
-    res: web::Json<ProofFromAggregator>,
-) -> impl Responder {
-    let res = res.into_inner();
-    let snark = res.clone().proof;
-    let len = snark.instances[0].len();
-    let proposal_id = u16_from_fr(snark.instances[0][len - 2]);
+// #[post("/proposal/aggregate")]
+// async fn submit_aggregated_snark(
+//     proposal_db: web::Data<Repository<Proposal>>,
+//     res: web::Json<ProofFromAggregator>,
+// ) -> impl Responder {
+//     let res = res.into_inner();
+//     let snark = res.clone().proof;
+//     let len = snark.instances[0].len();
+//     let proposal_id = u16_from_fr(snark.instances[0][len - 2]);
 
-    match submit_proof_to_proposal(proposal_db, proposal_id, res).await {
-        Ok(_) => {
-            log::info!("Proof submitted to proposal");
-            return HttpResponse::Ok().json(json!({
-                "message": "Submitting proof to proposal",
-            }));
-        }
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to submit proof to proposal",
-                "Error": e.to_string()
-            }));
-        }
-    }
-}
+//     match submit_proof_to_proposal(proposal_db, proposal_id, res).await {
+//         Ok(_) => {
+//             log::info!("Proof submitted to proposal");
+//             return HttpResponse::Ok().json(json!({
+//                 "message": "Submitting proof to proposal",
+//             }));
+//         }
+//         Err(e) => {
+//             return HttpResponse::BadRequest().json(json!({
+//                 "message": "Failed to submit proof to proposal",
+//                 "Error": e.to_string()
+//             }));
+//         }
+//     }
+// }
 
-#[get("/proposal/aggregate/{proposal_id}")]
-async fn get_proposal(
-    proposal_db: web::Data<Repository<Proposal>>,
-    path: web::Path<u16>,
-) -> impl Responder {
-    let proposal_id = path.into_inner();
-    let proposal_id_bson = bson::Bson::Int32(proposal_id as i32); // Convert proposal_id to Bson type
-    match proposal_db
-        .find_by_field("proposalId", proposal_id_bson)
-        .await
-    {
-        // Pass proposal_id_bson to find_by_field
-        Ok(result) => {
-            return HttpResponse::Ok().json(result);
-        }
-        Err(e) => {
-            return HttpResponse::BadRequest().json(json!({
-                "message": "Failed to get proposal",
-                "Error": e.to_string()
-            }));
-        }
-    }
-}
+// #[get("/proposal/aggregate/{proposal_id}")]
+// async fn get_proposal(
+//     proposal_db: web::Data<Repository<Proposal>>,
+//     path: web::Path<u16>,
+// ) -> impl Responder {
+//     let proposal_id = path.into_inner();
+//     let proposal_id_bson = bson::Bson::Int32(proposal_id as i32); // Convert proposal_id to Bson type
+//     match proposal_db
+//         .find_by_field("proposalId", proposal_id_bson)
+//         .await
+//     {
+//         // Pass proposal_id_bson to find_by_field
+//         Ok(result) => {
+//             return HttpResponse::Ok().json(result);
+//         }
+//         Err(e) => {
+//             return HttpResponse::BadRequest().json(json!({
+//                 "message": "Failed to get proposal",
+//                 "Error": e.to_string()
+//             }));
+//         }
+//     }
+// }
 
 #[get("/proposal/all_proposals")]
 async fn get_proposals(

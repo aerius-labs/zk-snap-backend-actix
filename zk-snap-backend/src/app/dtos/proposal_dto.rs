@@ -61,30 +61,68 @@ pub struct UserProofDto {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalResponseDto {
-    #[serde(rename = "proposal_id")]
     pub proposal_id: String,  // Changed to String to match output format
-
-    #[serde(rename = "dao_name")]
     pub dao_name: String,
-    
     pub creator: String,
-    
-    #[serde(rename = "dao_logo")]
     pub dao_logo: String,
-    
     pub title: String,
-    
     pub status: ProposalStatus,
-    
-    #[serde(rename = "start_time")]
     pub start_time: chrono::DateTime<Utc>,
-    
-    #[serde(rename = "end_time")]
     pub end_time: chrono::DateTime<Utc>,
-    
-    #[serde(rename = "encrypted_keys")]
     pub encrypted_keys: EncryptedKeys
 }
+
+impl Projectable for ProposalResponseDto {
+    fn get_projection_pipeline(_: Option<ObjectId>) -> Vec<Document> {
+        vec![
+            doc! {
+                "$project": {
+                    "_id": 1,
+                    "daoName": 1,
+                    "creator": 1,
+                    "daoLogo": 1,
+                    "title": 1,
+                    "status": 1,
+                    "startTime": 1,
+                    "endTime": 1,
+                    "encryptedKeys": 1
+                }
+            },
+            doc! {
+                "$addFields": {
+                    "proposal_id": { "$toString": "$_id" },
+                    "dao_name": "$daoName",
+                    "dao_logo": "$daoLogo",
+                    "start_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$startTime"
+                        }
+                    },
+                    "end_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$endTime"
+                        }
+                    },
+                    "encrypted_keys": "$encryptedKeys"
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "daoName": 0,
+                    "daoLogo": 0,
+                    "startTime": 0,
+                    "endTime": 0,
+                    "encryptedKeys": 0
+                }
+            }
+        ]
+    }
+
+}
+
 
 
 #[derive(Serialize, Deserialize)]
@@ -123,7 +161,11 @@ pub struct ProposalProjectedFields {
 
 
 impl Projectable for ProposalProjectedFields {
-    fn get_projection_pipeline(obj_id: ObjectId) -> Vec<Document> {
+    fn get_projection_pipeline(obj_id: Option<ObjectId>) -> Vec<Document> {
+        let obj_id = match obj_id {
+            Some(id) => id,
+            None => ObjectId::new(),
+        };
         vec![
             doc! {
                 "$match": {
