@@ -312,6 +312,45 @@ async fn get_proposal_by_uid(
 //     }
 // }
 
+/// Get all Proposals
+/// 
+/// This endpoint retrieves all proposals.
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// GET /proposal/all_proposals
+/// ```
+/// 
+/// # Response Body 
+/// 
+/// The request must include a JSON body with the following fields:
+/// 
+/// ```json
+/// {
+///    "dao_name": "MerkleTree",
+///    "dao_id": "6614077226af72332791da5f",
+///    "creator_address": "",
+///    "proposal_id": "",
+///    "proposal_name": "Proposal",
+///    "proposal_status": "Inactive",
+///    "proposal_description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
+///    "start_time": "2025-10-12T07:09:37.233Z",
+///    "end_time": "2025-10-12T07:14:44.077Z",
+///    "encrypted_keys": ""
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// All Errors are defined according to the validation rules
+/// 
+/// # Example Request
+/// ```bash
+/// curl -X GET http://api.example.com/proposal/all_proposals
+/// ```
+
 #[get("/proposal/all_proposals")]
 async fn get_proposals(
     db: web::Data<Repository<Proposal>>,

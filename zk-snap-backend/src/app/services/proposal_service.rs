@@ -276,6 +276,7 @@ async fn call_reveal_result(result_dto: VoteResultDto) -> Result<Vec<String>, Er
     }
 }
 
+/// Get all proposals
 pub async fn get_all_proposals(
     db: web::Data<Repository<Proposal>>,
 ) -> Result<Vec<ProposalResponseDto>, Error> {

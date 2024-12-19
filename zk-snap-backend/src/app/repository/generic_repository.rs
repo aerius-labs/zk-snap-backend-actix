@@ -103,7 +103,7 @@ where
 
     }
     
-
+    /// Reterieves all documents from the database with only specified fields using MongoDB aggregation.
     pub async fn find_all_with_projection<R>(&self) -> RepositoryResult<Vec<R>>
     where R: DeserializeOwned + Projectable
     {
