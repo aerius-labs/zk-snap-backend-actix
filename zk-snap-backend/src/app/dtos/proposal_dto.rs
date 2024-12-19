@@ -6,7 +6,7 @@ use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::app::{entities::proposal_entity::{EncryptedKeys, ProposalStatus}, repository::traits::Projectable};
+use crate::app::{entities::proposal_entity::{EncryptedKeys, ProposalStatus}, repository::traits::{Projectable, ProjectableByField}};
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(
@@ -123,7 +123,60 @@ impl Projectable for ProposalResponseDto {
 
 }
 
-
+impl ProjectableByField for ProposalResponseDto {
+    fn get_projection_pipeline_by_field(field: &str) -> Vec<Document> {
+        vec![
+            doc! {
+                "$match": {
+                    "daoId": field
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 1,
+                    "daoName": 1,
+                    "creator": 1,
+                    "daoLogo": 1,
+                    "title": 1,
+                    "status": 1,
+                    "startTime": 1,
+                    "endTime": 1,
+                    "encryptedKeys": 1
+                }
+            },
+            doc! {
+                "$addFields": {
+                    "proposal_id": { "$toString": "$_id" },
+                    "dao_name": "$daoName",
+                    "dao_logo": "$daoLogo",
+                    "start_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$startTime"
+                        }
+                    },
+                    "end_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$endTime"
+                        }
+                    },
+                    "encrypted_keys": "$encryptedKeys"
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "daoName": 0,
+                    "daoLogo": 0,
+                    "startTime": 0,
+                    "endTime": 0,
+                    "encryptedKeys": 0
+                }
+            }
+        ]
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalByIdResponseDto {

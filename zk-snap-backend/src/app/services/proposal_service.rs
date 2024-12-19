@@ -291,7 +291,7 @@ pub async fn get_proposal_by_dao_id(
     db: web::Data<Repository<Proposal>>,
     dao_id: &str,
 ) -> Result<Vec<ProposalResponseDto>, Error> {
-    match db.find_all_proposals_dto_by_dao(&dao_id).await {
+    match db.find_all_with_projection_by_field(&dao_id).await {
         Ok(result) => Ok(result),
         Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }

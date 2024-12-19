@@ -37,3 +37,8 @@ where
 pub trait Projectable {
     fn get_projection_pipeline(id: Option<ObjectId>) -> Vec<Document>;
 }
+
+/// This daoId trait is used to project the fields of a document
+pub trait ProjectableByField {
+    fn get_projection_pipeline_by_field(field: &str) -> Vec<Document>;
+}

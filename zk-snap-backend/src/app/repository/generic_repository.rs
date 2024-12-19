@@ -6,7 +6,7 @@ use mongodb::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::traits::{Projectable, RepositoryResult};
+use super::traits::{Projectable, ProjectableByField, RepositoryResult};
 
 pub struct Repository<T>
 where
@@ -217,62 +217,10 @@ where
         Ok(results)
     }
 
-    pub async fn find_all_proposals_dto_by_dao(&self, dao_id: &str) -> RepositoryResult<Vec<ProposalResponseDto>> {
-        let pipeline = vec![
-            // Match stage to filter by dao_id
-            doc! {
-                "$match": {
-                    "daoId": dao_id
-                }
-            },
-            doc! {
-                "$project": {
-                    "_id": 1,  // Include _id as we'll need it for proposal_id
-                    "proposalId": 1,
-                    "daoName": 1,
-                    "creator": 1,
-                    "daoLogo": 1,
-                    "title": 1,
-                    "status": 1,
-                    "startTime": 1,
-                    "endTime": 1,
-                    "encryptedKeys": 1
-                }
-            },
-            // Transform the document to match our desired output format
-            doc! {
-                "$addFields": {
-                    "proposal_id": { "$toString": "$_id" },  // Convert ObjectId to string
-                    "dao_name": "$daoName",
-                    "dao_logo": "$daoLogo",
-                    "start_time": {
-                        "$dateToString": {
-                            "format": "%Y-%m-%dT%H:%M:%SZ",
-                            "date": "$startTime"
-                        }
-                    },
-                    "end_time": {
-                        "$dateToString": {
-                            "format": "%Y-%m-%dT%H:%M:%SZ",
-                            "date": "$endTime"
-                        }
-                    },
-                    "encrypted_keys": "$encryptedKeys"
-                }
-            },
-            // Remove the original fields
-            doc! {
-                "$project": {
-                    "_id": 0,
-                    "daoName": 0,
-                    "daoLogo": 0,
-                    "startTime": 0,
-                    "endTime": 0,
-                    "encryptedKeys": 0,
-                    "proposalId": 0
-                }
-            }
-        ];
+    pub async fn find_all_with_projection_by_field<R>(&self, dao_id: &str) -> RepositoryResult<Vec<R>> 
+        where R: DeserializeOwned + ProjectableByField
+    {
+        let pipeline = R::get_projection_pipeline_by_field(dao_id);
 
         let options = mongodb::options::AggregateOptions::builder()
             .batch_size(100)
