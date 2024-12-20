@@ -335,7 +335,6 @@ async fn get_proposal_by_uid(
 ///    "proposal_description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
 ///    "start_time": "2025-10-12T07:09:37.233Z",
 ///    "end_time": "2025-10-12T07:14:44.077Z",
-///    "encrypted_keys": ""
 /// }
 /// ```
 /// 
@@ -393,7 +392,6 @@ async fn get_proposals(
 ///   "proposal_description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
 ///   "start_time": "2025-10-12T07:09:37.233Z",
 ///   "end_time": "2025-10-12T07:14:44.077Z",
-///   "encrypted_keys": ""
 /// }
 /// ```
 /// 

@@ -69,7 +69,6 @@ pub struct ProposalResponseDto {
     pub status: ProposalStatus,
     pub start_time: chrono::DateTime<Utc>,
     pub end_time: chrono::DateTime<Utc>,
-    pub encrypted_keys: EncryptedKeys
 }
 
 impl Projectable for ProposalResponseDto {
@@ -85,7 +84,6 @@ impl Projectable for ProposalResponseDto {
                     "status": 1,
                     "startTime": 1,
                     "endTime": 1,
-                    "encryptedKeys": 1
                 }
             },
             doc! {
@@ -105,7 +103,6 @@ impl Projectable for ProposalResponseDto {
                             "date": "$endTime"
                         }
                     },
-                    "encrypted_keys": "$encryptedKeys"
                 }
             },
             doc! {
@@ -115,7 +112,6 @@ impl Projectable for ProposalResponseDto {
                     "daoLogo": 0,
                     "startTime": 0,
                     "endTime": 0,
-                    "encryptedKeys": 0
                 }
             }
         ]
@@ -141,7 +137,6 @@ impl ProjectableByField for ProposalResponseDto {
                     "status": 1,
                     "startTime": 1,
                     "endTime": 1,
-                    "encryptedKeys": 1
                 }
             },
             doc! {
@@ -161,7 +156,6 @@ impl ProjectableByField for ProposalResponseDto {
                             "date": "$endTime"
                         }
                     },
-                    "encrypted_keys": "$encryptedKeys"
                 }
             },
             doc! {
@@ -171,7 +165,6 @@ impl ProjectableByField for ProposalResponseDto {
                     "daoLogo": 0,
                     "startTime": 0,
                     "endTime": 0,
-                    "encryptedKeys": 0
                 }
             }
         ]
