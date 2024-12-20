@@ -48,13 +48,9 @@ pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<DaoRespo
     }
 }
 
-pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<Dao, Error> {
-    let result = match db.find_by_id(id).await {
-        Ok(result) => result,
-        Err(e) => {
-            return Err(Error::new(ErrorKind::Other, e.to_string()));
-        }
-    };
+/// Returns a DAO by ID
+pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<DaoResponseDto, Error> {
+    let result = db.find_by_id_projected(id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     match result {
         Some(dao) => Ok(dao),
         None => Err(Error::new(ErrorKind::NotFound, "DAO not found")),

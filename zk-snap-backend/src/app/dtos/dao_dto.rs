@@ -1,6 +1,10 @@
-use bson::{doc, Document};
+use std::vec;
+
+use bson::{doc, oid::ObjectId, Document};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+
+use crate::app::repository::traits::Projectable;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateDaoDto {
@@ -32,6 +36,40 @@ pub struct DaoResponseDto {
     pub logo: String,
     pub id: String,
     // pub members_count: usize,
+}
+
+/// Projectable trait implementation for DAO
+impl Projectable for DaoResponseDto {
+    fn get_projection_pipeline(id: Option<ObjectId>) -> Vec<Document> {
+        let obj_id = match id {
+            Some(id) => id,
+            None => ObjectId::new(),
+        };
+
+        vec![
+            // Match the document by id
+            doc! {
+                "$match": {
+                    "_id": obj_id
+                }
+            },
+            // Project only the fields we need
+            doc! {
+                "$project": {
+                    "_id": 1,
+                    "name": 1,
+                    "logo": 1
+                }
+            },
+
+            // Transform the document to match our desired format
+            doc! {
+                "$addFields": {
+                    "id": { "$toString": "$_id" }
+                }
+            }
+        ]
+    }
 }
 
 /// DTO for projected fields

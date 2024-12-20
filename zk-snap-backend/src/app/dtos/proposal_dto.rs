@@ -1,6 +1,4 @@
-use std::any;
-
-use bson::{doc, oid::ObjectId, DateTime, Document};
+use bson::{doc, oid::ObjectId, Document};
 use chrono::Utc;
 use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use serde::{Deserialize, Serialize};

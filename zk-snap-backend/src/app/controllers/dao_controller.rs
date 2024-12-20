@@ -151,6 +151,48 @@ async fn find_all_daos(db: web::Data<Repository<Dao>>) -> impl Responder {
     }
 }
 
+/// Get DAO by ID
+/// 
+/// # API Endpoint
+/// ```not_rust
+/// GET /dao/{id}
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// - `id`: String (required) - The ID of the DAO
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///   "name": "DAO Name",
+///   "logo": "https://www.example.com/logo.png",
+///   "id": "507f1f77bcf86cd799439011"
+/// }
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when the ID is invalid:
+/// 
+/// ```json
+/// {
+///   "message": "Invalid id"
+/// }
+/// 
+/// Returned when fetching fails:
+/// 
+/// ```json
+/// {
+///  "message": "Failed to get DAO by id",
+///  "Error": "Database error message"
+/// }
+/// ```
+
 #[get("/dao/{id}")]
 async fn find_by_id(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl Responder {
     let id = path.into_inner();
