@@ -173,7 +173,8 @@ impl ProjectableByField for ProposalResponseDto {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProposalByIdResponseDto {
-    pub dao_name: String, 
+    pub dao_name: String,
+    pub dao_logo: String,
     pub dao_id: String,
     pub creator_address: String,
     pub proposal_id: String,
@@ -189,6 +190,8 @@ pub struct ProposalByIdResponseDto {
 pub struct ProposalProjectedFields {
     #[serde(rename = "_id")]
     pub id: ObjectId,
+    #[serde(rename = "daoLogo")]
+    pub dao_logo: String,
     #[serde(rename = "daoName")]
     pub dao_name: String,
     #[serde(rename = "daoId")]
@@ -222,6 +225,7 @@ impl Projectable for ProposalProjectedFields {
                 "$project": {
                     "_id": 1,
                     "daoName": 1,
+                    "daoLogo": 1,
                     "daoId": 1,
                     "creator": 1,
                     "status": 1,

@@ -206,6 +206,7 @@ pub async fn get_proposal_by_id(
         Some(proposal) => {
             let dto = ProposalByIdResponseDto {
                 proposal_id: proposal.id.to_string(),
+                dao_logo: proposal.dao_logo,
                 dao_name: proposal.dao_name,
                 dao_id: proposal.dao_id,
                 creator_address: proposal.creator,
