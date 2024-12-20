@@ -2,6 +2,7 @@ use dotenv::dotenv;
 use mongodb::{options::ClientOptions, Client};
 use std::env;
 
+/// Initialize MongoDB client
 pub async fn init_mongo() -> mongodb::error::Result<Client> {
     dotenv().ok();
     let mongodb_uri = env::var("MONGO_URI").expect("MONGO_URI must be set");

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use bson::{oid::ObjectId, Document};
 use serde::{Deserialize, Serialize};
 
+/// RepositoryError
 // Custom error type that can be extended to wrap various database errors
 #[derive(Debug)]
 pub enum RepositoryError {
@@ -21,6 +22,8 @@ impl std::fmt::Display for RepositoryError {
 impl std::error::Error for RepositoryError {}
 
 pub type RepositoryResult<T> = Result<T, RepositoryError>;
+
+/// DataRepository trait
 #[async_trait]
 pub trait DataRepository<T>
 where

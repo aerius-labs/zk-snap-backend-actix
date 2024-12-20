@@ -115,6 +115,46 @@ async fn create(
     }
 }
 
+/// Vote on a Proposal
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// POST /proposal/vote/{proposal_id}
+/// Content-Type: application/json
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// The request must include the proposal_id in the path.
+/// 
+/// # Request Body
+/// 
+/// The request must include a JSON body with the following fields:
+/// 
+/// ```json
+/// {
+///    "instances": ["0x1", "0x2", "0x3"],
+///    "proof": [1, 2, 3]
+/// }
+/// ```
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///    "message": "Voting on proposal",
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// All Error Messages are defined according to the validation rules
+
 #[post("/proposal/vote/{proposal_id}")]
 async fn vote_on_proposal(
     proposal_db: web::Data<Repository<Proposal>>,
@@ -174,6 +214,24 @@ async fn vote_on_proposal(
         "message": "Voting on proposal",
     }))
 }
+
+/// Get Results of a Proposal
+/// 
+/// # API Endpoint
+/// 
+/// ```not_rust
+/// GET /proposal/result/{proposal_id}
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// The request must include the proposal_id in the path.
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// Returns the result of the proposal voting
 
 #[get("/proposal/result/{proposal_id}")]
 async fn get_results(

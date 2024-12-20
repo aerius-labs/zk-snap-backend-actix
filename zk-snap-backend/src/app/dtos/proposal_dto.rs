@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::app::{entities::proposal_entity::{EncryptedKeys, ProposalStatus}, repository::traits::{Projectable, ProjectableByField}};
+
+// Custom validation function
 fn validate_title_length(value: &str) -> Result<(), ValidationError> {
     if value.len() > 100 {
         Err(ValidationError::new(
@@ -25,6 +27,7 @@ fn validate_description_length(value: &str) -> Result<(), ValidationError> {
     }
 }
 
+/// Data transfer object for creating a proposal
 #[derive(Serialize, Deserialize, Validate, Debug)]
 pub struct CreateProposalDto {
     #[validate(length(min = 1))]
@@ -51,12 +54,14 @@ pub struct CreateProposalDto {
     pub nullifier: String,
 }
 
+/// Data transfer object for updating a proposal
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UserProofDto {
     pub instances: Vec<String>,
     pub proof: Vec<u8>,
 }
 
+/// Data transfer object for getting all proposal
 #[derive(Serialize, Deserialize)]
 pub struct ProposalResponseDto {
     pub proposal_id: String,  // Changed to String to match output format
@@ -69,6 +74,7 @@ pub struct ProposalResponseDto {
     pub end_time: chrono::DateTime<Utc>,
 }
 
+/// Implement the Projectable trait for ProposalResponseDto
 impl Projectable for ProposalResponseDto {
     fn get_projection_pipeline(_: Option<ObjectId>) -> Vec<Document> {
         vec![
@@ -117,6 +123,7 @@ impl Projectable for ProposalResponseDto {
 
 }
 
+/// Implement the ProjectableByField trait for ProposalResponseDto
 impl ProjectableByField for ProposalResponseDto {
     fn get_projection_pipeline_by_field(field: &str) -> Vec<Document> {
         vec![
@@ -169,6 +176,7 @@ impl ProjectableByField for ProposalResponseDto {
     }
 }
 
+/// Data transfer object for getting a proposal by ID
 #[derive(Serialize, Deserialize)]
 pub struct ProposalByIdResponseDto {
     pub dao_name: String,
@@ -184,6 +192,7 @@ pub struct ProposalByIdResponseDto {
     pub encrypted_keys: EncryptedKeys
 }
 
+/// Data transfer object from the database
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProposalProjectedFields {
     #[serde(rename = "_id")]
@@ -206,7 +215,7 @@ pub struct ProposalProjectedFields {
     pub encrypted_keys: EncryptedKeys
 }
 
-
+/// Implement the Projectable trait for ProposalProjectedFields
 impl Projectable for ProposalProjectedFields {
     fn get_projection_pipeline(obj_id: Option<ObjectId>) -> Vec<Document> {
         let obj_id = match obj_id {

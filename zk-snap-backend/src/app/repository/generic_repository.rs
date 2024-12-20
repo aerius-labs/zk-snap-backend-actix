@@ -1,4 +1,4 @@
-use crate::app::{dtos::{dao_dto::DaoProjectedFields, proposal_dto::ProposalResponseDto}, repository::traits::RepositoryError};
+use crate::app::{dtos::dao_dto::DaoProjectedFields, repository::traits::RepositoryError};
 use bson::Bson;
 use futures::stream::StreamExt;
 use mongodb::{
@@ -8,6 +8,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::traits::{Projectable, ProjectableByField, RepositoryResult};
 
+/// Generic repository for CRUD operations on a MongoDB collection.
 pub struct Repository<T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Unpin + Sync + Send,

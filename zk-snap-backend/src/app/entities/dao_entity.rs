@@ -1,6 +1,7 @@
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
+/// DAO entity
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Dao {
     #[serde(rename = "_id")]

@@ -197,6 +197,7 @@ pub async fn submit_proof_to_proposal(
     }
 }
 
+/// Get a proposal by ID
 pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
     id: &str,
@@ -223,6 +224,7 @@ pub async fn get_proposal_by_id(
     }
 }
 
+/// Get result of a proposal
 pub async fn get_result_on_proposal(
     db: web::Data<Repository<Proposal>>,
     id: &str,
@@ -287,7 +289,7 @@ pub async fn get_all_proposals(
     }
 }
 
-
+/// Get all proposals by DAO ID
 pub async fn get_proposal_by_dao_id(
     db: web::Data<Repository<Proposal>>,
     dao_id: &str,

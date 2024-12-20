@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::dtos::proposal_dto::UserProofDto;
 
+/// UserProof entity
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UserProof {
     #[serde(rename = "instances")]
@@ -30,6 +31,7 @@ impl UserProof {
     }
 }
 
+/// Proposal entity
 #[derive(Serialize, Deserialize)]
 pub struct Proposal {
     #[serde(rename = "_id")]
@@ -90,12 +92,14 @@ pub struct Proposal {
     pub user_proof_queue: Vec<Snark>,
 }
 
+/// EncryptedKeys entity
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EncryptedKeys {
     pub pub_key: String,
     pub pvt_key: String,
 }
 
+/// Vote entity
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Vote {
     #[serde(rename = "proposalId")]
@@ -106,6 +110,7 @@ pub struct Vote {
     pub user_proof: ZkProof,
 }
 
+/// ProposalStatus enum
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ProposalStatus {
     Active,
@@ -113,6 +118,7 @@ pub enum ProposalStatus {
     Completed,
 }
 
+/// ZkProof entity
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ZkProof {
     #[serde(rename = "publicInput")]

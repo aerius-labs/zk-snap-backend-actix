@@ -6,6 +6,7 @@ use crate::app::repository::generic_repository::Repository;
 use actix_web::web;
 use mongodb::bson::oid::ObjectId;
 
+/// Create a new DAO
 pub async fn create_dao(
     db: web::Data<Repository<Dao>>,
     dao: CreateDaoDto,
@@ -28,7 +29,7 @@ pub async fn create_dao(
 }
 
 /// Returns a list of all DAOs
-/// Adds a logo in response if not present in the DAO
+// Adds a logo in response if not present in the DAO
 pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<DaoResponseDto>, Error> {
     match db.find_all_projected().await {
         Ok(result) => {
@@ -57,6 +58,7 @@ pub async fn get_dao_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<D
     }
 }
 
+/// Deletes a DAO by ID
 pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<(), Error> {
     match db.delete(id).await {
         Ok(result) => Ok(result),
@@ -64,6 +66,7 @@ pub async fn delete_by_id(db: web::Data<Repository<Dao>>, id: &str) -> Result<()
     }
 }
 
+/// Updates a DAO by ID
 pub async fn update_dao_by_id(
     db: web::Data<Repository<Dao>>,
     id: &String,
