@@ -212,6 +212,48 @@ async fn find_by_id(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl 
     HttpResponse::Ok().json(dao)
 }
 
+/// Delete DAO by ID
+/// 
+/// # API Endpoint
+/// ```not_rust
+/// DELETE /dao/{id}
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// - `id`: String (required) - The ID of the DAO
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///  "message": "Deleted DAO"
+/// }
+/// ```
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when the ID is invalid:
+/// 
+/// ```json
+/// {
+/// "message": "Invalid id"
+/// }
+/// ```
+/// 
+/// Returned when deletion fails:
+/// 
+/// ```json
+/// {
+/// "message": "Failed to delete DAO",
+/// "Error": "Database error message"
+/// }
+/// ```
+
 #[delete("/dao/{id}")]
 async fn delete_dao(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl Responder {
     let id = path.into_inner();
@@ -232,6 +274,55 @@ async fn delete_dao(db: web::Data<Repository<Dao>>, path: Path<String>) -> impl 
         "message": "Deleted DAO",
     }))
 }
+
+/// Update DAO by ID
+/// 
+/// # API Endpoint
+/// ```not_rust
+/// PUT /dao/{id}
+/// Content-Type: application/json
+/// ```
+/// 
+/// # Path Parameters
+/// 
+/// - `id`: String (required) - The ID of the DAO
+/// 
+/// # Request Body
+/// 
+/// The request must include a JSON body with the following fields:
+/// 
+/// ```json
+/// {
+///   "name": "DAO Name",
+///   "description": "DAO Description",
+///   "logo": "https://www.example.com/logo.png"
+/// }
+/// 
+/// # Validation Rules
+/// 
+/// Are the same as the create endpoint
+/// 
+/// # Response
+/// 
+/// ## Success (200 OK)
+/// 
+/// ```json
+/// {
+///  "message": "Updated DAO"
+/// }
+/// 
+/// ## Error Responses
+/// 
+/// ### 400 Bad Request
+/// 
+/// Returned when the ID is invalid:
+/// 
+/// ```json
+/// {
+/// "message": "Invalid id"
+/// }
+/// 
+/// And other error responses are the same as the create endpoint
 
 #[put("/dao/{id}")]
 async fn update_dao(

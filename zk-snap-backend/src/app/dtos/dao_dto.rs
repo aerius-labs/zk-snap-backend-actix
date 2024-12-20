@@ -6,6 +6,7 @@ use validator::Validate;
 
 use crate::app::repository::traits::Projectable;
 
+/// DTO for creating a DAO
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateDaoDto {
     #[validate(length(
