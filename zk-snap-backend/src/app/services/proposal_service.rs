@@ -6,8 +6,7 @@ use halo2_base::utils::{fe_to_biguint, ScalarField};
 use lapin::{options::*, types::FieldTable, BasicProperties, Connection, ConnectionProperties};
 use mongodb::bson::oid::ObjectId;
 use num_bigint::BigUint;
-use num_traits::{Num, Zero};
-use pse_poseidon::Poseidon;
+use num_traits::Num;
 use paillier_chip::paillier::paillier_add_native;
 use reqwest::Client;
 use std::env;
@@ -17,9 +16,9 @@ use tokio::spawn;
 use crate::app::dtos::aggregator_request_dto::{
     AggregatorBaseDto, AggregatorRecursiveDto, MessageType, ProofFromAggregator,
 };
-use crate::app::dtos::proposal_dto::{ProposalByIdResponseDto, ProposalProjectedFields, ProposalResponseDto, VoteResultDto};
+use crate::app::dtos::proposal_dto::{ProposalByIdResponseDto, ProposalResponseDto, VoteResultDto};
 use crate::app::entities::proposal_entity::{EncryptedKeys, ProposalStatus};
-use crate::app::utils::parse_string_pub_key::{convert_to_public_key_big_int, parse_public_key};
+use crate::app::utils::parse_string_pub_key::parse_public_key;
 use crate::app::{
     dtos::proposal_dto::{CreateProposalDto, DecryptRequest, DecryptResponse},
     entities::{dao_entity::Dao, proposal_entity::Proposal},
@@ -202,26 +201,16 @@ pub async fn get_proposal_by_id(
     db: web::Data<Repository<Proposal>>,
     id: &str,
 ) -> Result<ProposalByIdResponseDto, Error> {
-    let proposal: Option<ProposalProjectedFields> = db.find_by_id_projected(id).await.map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-    match proposal {
-        Some(proposal) => {
-            let dto = ProposalByIdResponseDto {
-                proposal_id: proposal.id.to_string(),
-                dao_logo: proposal.dao_logo,
-                dao_name: proposal.dao_name,
-                dao_id: proposal.dao_id,
-                creator_address: proposal.creator,
-                proposal_name: proposal.title,
-                proposal_status: proposal.status,
-                proposal_description: proposal.description,
-                start_time: proposal.start_time,
-                end_time: proposal.end_time,
-                encrypted_keys: proposal.encrypted_keys
-            };
-            Ok(dto)
-        },
-        None => Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+    match db.find_by_id_projected::<ProposalByIdResponseDto>(id).await {
+        Ok(result) => {
+            match result {
+                Some(proposal) => Ok(proposal),
+                None => Err(Error::new(ErrorKind::NotFound, "Proposal not found")),
+            }
+        }
+        Err(e) => Err(Error::new(ErrorKind::Other, e.to_string())),
     }
+    
 }
 
 /// Get result of a proposal

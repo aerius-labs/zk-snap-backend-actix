@@ -182,41 +182,18 @@ pub struct ProposalByIdResponseDto {
     pub dao_name: String,
     pub dao_logo: String,
     pub dao_id: String,
-    pub creator_address: String,
-    pub proposal_id: String,
-    pub proposal_name: String,
-    pub proposal_status: ProposalStatus,
-    pub proposal_description: String,
-    pub start_time: chrono::DateTime<Utc>,
-    pub end_time: chrono::DateTime<Utc>,
-    pub encrypted_keys: EncryptedKeys
-}
-
-/// Data transfer object from the database
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ProposalProjectedFields {
-    #[serde(rename = "_id")]
-    pub id: ObjectId,
-    #[serde(rename = "daoLogo")]
-    pub dao_logo: String,
-    #[serde(rename = "daoName")]
-    pub dao_name: String,
-    #[serde(rename = "daoId")]
-    pub dao_id: String,
     pub creator: String,
+    pub id: String,
+    pub title: String,
     pub status: ProposalStatus,
     pub description: String,
-    pub title: String,
-    #[serde(rename = "startTime", with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub start_time: chrono::DateTime<Utc>,
-    #[serde(rename = "endTime", with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub end_time: chrono::DateTime<Utc>,
-    #[serde(rename = "encryptedKeys")]
     pub encrypted_keys: EncryptedKeys
 }
 
-/// Implement the Projectable trait for ProposalProjectedFields
-impl Projectable for ProposalProjectedFields {
+/// Implement the Projectable trait for ProposalByIdResponseDto
+impl Projectable for ProposalByIdResponseDto {
     fn get_projection_pipeline(obj_id: Option<ObjectId>) -> Vec<Document> {
         let obj_id = match obj_id {
             Some(id) => id,
@@ -241,6 +218,37 @@ impl Projectable for ProposalProjectedFields {
                     "startTime": 1,  // MongoDB will handle DateTime conversion
                     "endTime": 1,
                     "encryptedKeys": 1
+                }
+            },
+            doc! {
+                "$addFields": {
+                    "id": { "$toString": "$_id" },
+                    "dao_name": "$daoName",
+                    "dao_logo": "$daoLogo",
+                    "dao_id": "$daoId",
+                    "start_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$startTime"
+                        }
+                    },
+                    "end_time": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%dT%H:%M:%S.%LZ",
+                            "date": "$endTime"
+                        }
+                    },
+                    "encrypted_keys": "$encryptedKeys",
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "daoName": 0,
+                    "daoLogo": 0,
+                    "daoId": 0,
+                    "startTime": 0,
+                    "endTime": 0,
                 }
             }
         ]
