@@ -23,7 +23,7 @@ pub struct CreateDaoDto {
     ))]
     pub description: String,
 
-    #[validate(length(min = 3, message = "Logo URL must be between 3 and 200 characters"))]
+    #[validate(url(message = "Logo must be a valid URL"))]
     pub logo: Option<String>,
 
     // #[validate(length(min = 1))]
