@@ -83,8 +83,8 @@ pub struct DaoProjectedFields {
 }
 
 /// Mongo Document for projected fields
-impl DaoProjectedFields {
-    pub fn projection_doc() -> Vec<Document> {
+impl Projectable for DaoProjectedFields {
+    fn get_projection_pipeline(_: Option<ObjectId>) -> Vec<Document> {
         vec![
             // Project only the fields we need
             doc! {

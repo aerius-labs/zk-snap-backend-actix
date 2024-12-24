@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use crate::app::dtos::dao_dto::{CreateDaoDto, DaoResponseDto};
+use crate::app::dtos::dao_dto::{CreateDaoDto, DaoProjectedFields, DaoResponseDto};
 use crate::app::entities::dao_entity::Dao;
 use crate::app::repository::generic_repository::Repository;
 use actix_web::web;
@@ -31,7 +31,7 @@ pub async fn create_dao(
 /// Returns a list of all DAOs
 // Adds a logo in response if not present in the DAO
 pub async fn get_all_daos(db: web::Data<Repository<Dao>>) -> Result<Vec<DaoResponseDto>, Error> {
-    match db.find_all_projected().await {
+    match db.find_all_with_projection::<DaoProjectedFields>().await {
         Ok(result) => {
             let dao_resp: Vec<DaoResponseDto> = result
                 .into_iter()
