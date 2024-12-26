@@ -274,11 +274,11 @@ async fn get_results(
 /// {
 ///     "dao_name": "MerkleTree",
 ///     "dao_id": "6614077226af72332791da5f",
-///     "creator_address": "",
-///     "proposal_id": "",
-///     "proposal_name": "Proposal",
-///     "proposal_status": "Inactive",
-///     "proposal_description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
+///     "creator": "",
+///     "id": "",
+///     "title": "Proposal",
+///     "status": "Inactive",
+///     "description": "This proposal aims to improve our current infrastructure by adopting new technologies and methodologies.",
 ///     "start_time": "2025-10-12T07:09:37.233Z",
 ///     "end_time": "2025-10-12T07:14:44.077Z",
 ///     "encrypted_keys": ""
